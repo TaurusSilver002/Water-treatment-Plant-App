@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:waterplant/components/CustomAppBar.dart';
+import 'package:waterplant/components/customdrawer.dart';
+import 'package:waterplant/config.dart';
 
 class Etp extends StatefulWidget {
   const Etp({super.key});
@@ -13,88 +16,62 @@ class _EtpState extends State<Etp> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Plant Name')),
-      body: ListView.builder(
-        itemCount: _plantNames.length,
-        itemBuilder: (context, index) {
-          return Card(
-            margin: const EdgeInsets.all(8.0),
-            child: ListTile(
-              title: Text(_plantNames[index]),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => PlantDetails(plantName: _plantNames[index]),
+      backgroundColor: AppColors.cream,
+      appBar:const CustomAppBar(),
+      drawer: const CustomDrawer(),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+         const SizedBox(height: 16,),
+                    Padding(
+                   padding: const EdgeInsets.all(8.0),
+                   child: Container(
+                    padding:const  EdgeInsets.all(10),
+                    child:const  Column(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('SELECT YOUR WORKPLACE',style: TextStyle(color: AppColors.darkblue,fontSize: 20,fontWeight: FontWeight.bold),),
+                        SizedBox(height: 12,),
+                      ],
+                    ),
+                   ),
+                 ),
+
+          Expanded(
+            child: ListView.builder(
+              itemCount: _plantNames.length,
+              itemBuilder: (context, index) {
+                return Card(
+                  color: AppColors.lightblue,
+                  margin: const EdgeInsets.all(12.0),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.all(12),
+                    title: Text(_plantNames[index],style: const TextStyle(color: AppColors.cream),),
+                    onTap: () {Navigator.pushNamed(
+                      context, AppRoutes.etpdata,
+                      arguments: _plantNames[index]
+                      );},
+                    trailing: const Icon(
+              Icons.arrow_forward_ios,
+              color: AppColors.yellowochre,
+            ),
                   ),
                 );
               },
             ),
-          );
-        },
+          ),
+           Container(
+            height: 80,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back, color: AppColors.darkblue),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class PlantDetails extends StatelessWidget {
-  final String plantName;
-
-  const PlantDetails({super.key, required this.plantName});
-
-  // Mimicking backend data as a static list
-  static final List<Map<String, String>> _plantData = [
-    {
-      'name': 'PLANT 1',
-      'description': 'NO ',
-    },
-    {
-      'name': 'PLANT 2',
-      'description': 'Plant 2 thrives in bright light and needs watering every few days.',
-    },
-    {
-      'name': 'PLANT 3',
-      'description': 'Plant 3 is a beautiful flowering plant, perfect for home decoration.',
-    },
-  ];
-
-  // Function to fetch plant details from the list
-  Map<String, String>? _getPlantData(String name) {
-    return _plantData.firstWhere((plant) => plant['name'] == name, orElse: () => {});
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final plantData = _getPlantData(plantName);
-
-    if (plantData!.isEmpty) {
-      return Scaffold(
-        appBar: AppBar(title: Text(plantName)),
-        body: const Center(child: Text('No details found for this plant')),
-      );
-    }
-
-    return Scaffold(
-      appBar: AppBar(title: Text(plantData['name']!)),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-           // Image.network(plantData['image']!),
-            const SizedBox(height: 10),
-            Text(
-              plantData['name']!,
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              plantData['description']!,
-              style: const TextStyle(fontSize: 18),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
