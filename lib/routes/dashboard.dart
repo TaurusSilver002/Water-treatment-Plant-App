@@ -58,13 +58,13 @@ class _DashboardState extends State<Dashboard> {
                     child: Column(
                       children: [
                       _buildDashboardCard(
-                        title: 'ETP',
+                        title: 'STP',
                         color: AppColors.lightblue,
                         onTap: () => _navigateTo(context, AppRoutes.etp),
                       ),
                       const SizedBox(height: 8,),
                       _buildDashboardCard(
-                        title: 'STP',
+                        title: 'ETP',
                         color: AppColors.lightblue,
                         onTap: () => _navigateTo(context,  AppRoutes.etp),
                       ),

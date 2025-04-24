@@ -20,4 +20,14 @@ class AppRoutes {
   static const etpflow = '/etpflow';
   static const etpequip = '/etpequip';
   static const etplog = '/etplog';
+  static const splash = '/splash';
+}
+class AppConfig{
+  static const String baseUrl = 'https://api.watershooters.in';
+  static const String signlink = '$baseUrl/api/v1/user/register';
+  static const String loginlink = '$baseUrl/api/v1/user/login';
+}
+class AppImages {
+  static const String logo = 'assets/images/shootlogo.png';
+  static const String splash = 'assets/lottie/splash.json';
 }
