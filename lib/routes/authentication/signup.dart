@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:intl/intl.dart';
+import 'package:waterplant/bloc/register/registrationBloc.dart';
 import 'package:waterplant/config.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:waterplant/models/auth.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({Key? key}) : super(key: key);
@@ -11,18 +15,19 @@ class SignUpPage extends StatefulWidget {
 
 class _SignUpPageState extends State<SignUpPage> {
   final _formKey = GlobalKey<FormState>();
+  late RegistrationBloc _registrationBloc;
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
   final TextEditingController _aadharController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _dobController = TextEditingController();
 
-  bool _isAdmin = false;
-  bool _isOperator = false;
+  int? _selectedRoleId;
   String? _selectedQualification;
   int _currentStep = 0;
   bool _obscurePassword = true;
@@ -38,105 +43,164 @@ class _SignUpPageState extends State<SignUpPage> {
     'Other'
   ];
 
+  final List<Map<String, dynamic>> _roles = [
+    {'id': 3, 'name': 'Client'},
+    {'id': 2, 'name': 'Operator'},
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _registrationBloc = RegistrationBloc(GetIt.I<AuthRepo>());
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.cream,
-      appBar: AppBar(
-        title: const Text('Sign Up'),
-        centerTitle: true,
-        backgroundColor: AppColors.darkblue,
-        foregroundColor: AppColors.cream,
-      ),
-      body: Form(
-        key: _formKey,
-        child: Stepper(
-          elevation: 0,
-          type: StepperType.vertical,
-          currentStep: _currentStep,
-          onStepContinue: () {
-            bool isLastStep = _currentStep == 3;
-            if (isLastStep) {
-              if (_formKey.currentState!.validate()) {
-                if (!_isAdmin && !_isOperator) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please select a role (Admin or Operator)')),
-                  );
-                  return;
+    return BlocProvider.value(
+      value: _registrationBloc,
+      child: Builder(
+        builder: (context) => Scaffold(
+          backgroundColor: AppColors.cream,
+          appBar: AppBar(
+            title: const Text('Sign Up'),
+            centerTitle: true,
+            backgroundColor: AppColors.darkblue,
+            foregroundColor: AppColors.cream,
+          ),
+          body: Form(
+            key: _formKey,
+            child: Stepper(
+              elevation: 0,
+              type: StepperType.vertical,
+              currentStep: _currentStep,
+              onStepContinue: () {
+                bool isLastStep = _currentStep == 3;
+                if (isLastStep) {
+                  if (_formKey.currentState!.validate()) {
+                    if (_selectedRoleId == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text('Please select a role')),
+                      );
+                      return;
+                    }
+                    _handleSignUp(context);
+                  }
+                } else {
+                  bool canProceed = false;
+                  switch (_currentStep) {
+                    case 0:
+                      canProceed = _validateBasicInfo();
+                      break;
+                    case 1:
+                      canProceed = _validateSecurity();
+                      break;
+                    case 2:
+                      canProceed = _validatePersonalDetails();
+                      break;
+                    default:
+                      canProceed = true;
+                  }
+                  if (canProceed) {
+                    setState(() {
+                      _currentStep += 1;
+                    });
+                  } else {
+                    _formKey.currentState?.validate();
+                  }
                 }
-                _handleSignUp();
-              }
-            } else {
-              bool canProceed = false;
-              switch (_currentStep) {
-                case 0:
-                  canProceed = _validateBasicInfo();
-                  break;
-                case 1:
-                  canProceed = _validateSecurity();
-                  break;
-                case 2:
-                  canProceed = _validatePersonalDetails();
-                  break;
-                default:
-                  canProceed = true;
-              }
-              if (canProceed) {
-                setState(() {
-                  _currentStep += 1;
-                });
-              } else {
-                _formKey.currentState?.validate();
-              }
-            }
-          },
-          onStepCancel: () {
-            if (_currentStep > 0) {
-              setState(() {
-                _currentStep -= 1;
-              });
-            }
-          },
-          onStepTapped: (step) => setState(() => _currentStep = step),
-          steps: _buildSteps(),
-          controlsBuilder: (context, details) {
-            return Padding(
-              padding: const EdgeInsets.only(top: 20),
-              child: Row(
-                children: [
-                  ElevatedButton(
-                    onPressed: details.onStepContinue,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.darkblue,
-                      foregroundColor: AppColors.cream,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              },
+              onStepCancel: () {
+                if (_currentStep > 0) {
+                  setState(() {
+                    _currentStep -= 1;
+                  });
+                }
+              },
+              onStepTapped: (step) => setState(() => _currentStep = step),
+              steps: _buildSteps(),
+              controlsBuilder: (context, details) {
+                return BlocListener<RegistrationBloc, RegistrationState>(
+                  listener: (context, state) {
+                    if (state is RegistrationLoadingState) {
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (context) => const Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                      );
+                    } else if (state is RegistrationSuccessState) {
+                      Navigator.pop(context); // Close loading dialog
+                      Navigator.pushReplacementNamed(context, '/home');
+                    } else if (state is RegistrationFailedState) {
+                      Navigator.pop(context); // Close loading dialog
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(state.message),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 20),
+                    child: Row(
+                      children: [
+                        ElevatedButton(
+                          onPressed: () {
+                            if (_currentStep == 3) {
+                              if (_formKey.currentState!.validate()) {
+                                if (_selectedRoleId == null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text('Please select a role')),
+                                  );
+                                  return;
+                                }
+                                _handleSignUp(context);
+                              }
+                            } else {
+                              details.onStepContinue?.call();
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.darkblue,
+                            foregroundColor: AppColors.cream,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 12),
+                          ),
+                          child: Text(_currentStep == 3 ? 'Sign Up' : 'Continue'),
+                        ),
+                        if (_currentStep > 0) ...[
+                          const SizedBox(width: 12),
+                          TextButton(
+                            onPressed: details.onStepCancel,
+                            child: const Text('Back'),
+                          ),
+                        ],
+                      ],
                     ),
-                    child: Text(_currentStep == 3 ? 'Sign Up' : 'Continue'),
                   ),
-                  if (_currentStep > 0) ...[
-                    const SizedBox(width: 12),
-                    TextButton(
-                      onPressed: details.onStepCancel,
-                      child: const Text('Back'),
-                    ),
-                  ],
-                ],
-              ),
-            );
-          },
-        ),
-      ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('Already have an account?'),
-            TextButton(
-              onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
-              child: const Text('Login', style: TextStyle(color: AppColors.darkblue)),
+                );
+              },
             ),
-          ],
+          ),
+          bottomNavigationBar: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text('Already have an account?'),
+                TextButton(
+                  onPressed: () =>
+                      Navigator.pushReplacementNamed(context, '/login'),
+                  child: const Text('Login',
+                      style: TextStyle(color: AppColors.darkblue)),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -200,7 +264,8 @@ class _SignUpPageState extends State<SignUpPage> {
                 if (value == null || value.isEmpty) {
                   return 'Please enter an email';
                 }
-                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                    .hasMatch(value)) {
                   return 'Please enter a valid email';
                 }
                 return null;
@@ -222,8 +287,11 @@ class _SignUpPageState extends State<SignUpPage> {
                 border: const OutlineInputBorder(),
                 prefixIcon: const Icon(Icons.lock),
                 suffixIcon: IconButton(
-                  icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
-                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                  icon: Icon(_obscurePassword
+                      ? Icons.visibility
+                      : Icons.visibility_off),
+                  onPressed: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
                 ),
               ),
               obscureText: _obscurePassword,
@@ -245,8 +313,11 @@ class _SignUpPageState extends State<SignUpPage> {
                 border: const OutlineInputBorder(),
                 prefixIcon: const Icon(Icons.lock),
                 suffixIcon: IconButton(
-                  icon: Icon(_obscureConfirmPassword ? Icons.visibility : Icons.visibility_off),
-                  onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                  icon: Icon(_obscureConfirmPassword
+                      ? Icons.visibility
+                      : Icons.visibility_off),
+                  onPressed: () => setState(
+                      () => _obscureConfirmPassword = !_obscureConfirmPassword),
                 ),
               ),
               obscureText: _obscureConfirmPassword,
@@ -282,7 +353,8 @@ class _SignUpPageState extends State<SignUpPage> {
                 if (value == null || value.isEmpty) {
                   return 'Please enter Aadhar number';
                 }
-                if (value.length != 12 || !RegExp(r'^[0-9]+$').hasMatch(value)) {
+                if (value.length != 12 ||
+                    !RegExp(r'^[0-9]+$').hasMatch(value)) {
                   return 'Please enter a valid 12-digit Aadhar number';
                 }
                 return null;
@@ -326,7 +398,8 @@ class _SignUpPageState extends State<SignUpPage> {
                 if (picked != null && picked != _selectedDate) {
                   setState(() {
                     _selectedDate = picked;
-                    _dobController.text = DateFormat('dd/MM/yyyy').format(picked);
+                    _dobController.text =
+                        DateFormat('yyyy-MM-dd').format(picked);
                   });
                 }
               },
@@ -394,37 +467,19 @@ class _SignUpPageState extends State<SignUpPage> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: CheckboxListTile(
-                    title: const Text('Admin'),
-                    value: _isAdmin,
-                    onChanged: (bool? value) {
-                      setState(() {
-                        _isAdmin = value ?? false;
-                        if (_isAdmin) _isOperator = false;
-                      });
-                    },
-                    controlAffinity: ListTileControlAffinity.leading,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-                Expanded(
-                  child: CheckboxListTile(
-                    title: const Text('Operator'),
-                    value: _isOperator,
-                    onChanged: (bool? value) {
-                      setState(() {
-                        _isOperator = value ?? false;
-                        if (_isOperator) _isAdmin = false;
-                      });
-                    },
-                    controlAffinity: ListTileControlAffinity.leading,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-              ],
+            Column(
+              children: _roles.map((role) {
+                return RadioListTile<int>(
+                  title: Text(role['name']),
+                  value: role['id'],
+                  groupValue: _selectedRoleId,
+                  onChanged: (int? value) {
+                    setState(() {
+                      _selectedRoleId = value;
+                    });
+                  },
+                );
+              }).toList(),
             ),
           ],
         ),
@@ -442,9 +497,13 @@ class _SignUpPageState extends State<SignUpPage> {
         case 1:
           return _validateSecurity() ? StepState.indexed : StepState.error;
         case 2:
-          return _validatePersonalDetails() ? StepState.indexed : StepState.error;
+          return _validatePersonalDetails()
+              ? StepState.indexed
+              : StepState.error;
         case 3:
-          return _validateAdditionalInfo() ? StepState.indexed : StepState.error;
+          return _validateAdditionalInfo()
+              ? StepState.indexed
+              : StepState.error;
         default:
           return StepState.indexed;
       }
@@ -456,7 +515,8 @@ class _SignUpPageState extends State<SignUpPage> {
     if (_firstNameController.text.isEmpty ||
         _lastNameController.text.isEmpty ||
         _emailController.text.isEmpty ||
-        !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(_emailController.text)) {
+        !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+            .hasMatch(_emailController.text)) {
       return false;
     }
     return true;
@@ -485,37 +545,34 @@ class _SignUpPageState extends State<SignUpPage> {
   bool _validateAdditionalInfo() {
     if (_addressController.text.isEmpty ||
         _selectedQualification == null ||
-        (!_isAdmin && !_isOperator)) {
+        _selectedRoleId == null) {
       return false;
     }
     return true;
   }
 
-  void _handleSignUp() {
-    final userData = {
-      'firstName': _firstNameController.text,
-      'lastName': _lastNameController.text,
-      'email': _emailController.text,
-      'password': _passwordController.text,
-      'aadharNumber': _aadharController.text,
-      'phone': _phoneController.text,
-      'address': _addressController.text,
-      'dob': _dobController.text,
-      'qualification': _selectedQualification,
-      'isAdmin': _isAdmin,
-      'isOperator': _isOperator,
-    };
+  void _handleSignUp(BuildContext context) {
+    if (_formKey.currentState!.validate()) {
+      final registrationEvent = RegistrationCreateUserEvent(
+        email: _emailController.text,
+        password: _passwordController.text,
+        firstname: _firstNameController.text,
+        lastname: _lastNameController.text,
+        aadharNumber: _aadharController.text,
+        phoneNumber: _phoneController.text,
+        address: _addressController.text,
+        dateOfBirth: _dobController.text,
+        qualification: _selectedQualification!,
+        roleId: _selectedRoleId!,
+      );
 
-    print('Sign up data: $userData');
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Account created successfully!')),
-    );
-    Navigator.pushReplacementNamed(context, '/home');
+      context.read<RegistrationBloc>().add(registrationEvent);
+    }
   }
 
   @override
   void dispose() {
+    _registrationBloc.close();
     _firstNameController.dispose();
     _lastNameController.dispose();
     _emailController.dispose();
