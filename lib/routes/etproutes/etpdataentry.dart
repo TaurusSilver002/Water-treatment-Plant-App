@@ -11,15 +11,17 @@ class Etpdataentry extends StatefulWidget {
 }
 
 class _EtpdataentryState extends State<Etpdataentry> {
-late String plantName; 
+  late String plantName;
+  late int plantId;
 
-  
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final args = ModalRoute.of(context)?.settings.arguments;
-    plantName = args as String? ?? 'WORKPLACE NOT SELECTED'; 
-  }
+// In etpdataentry.dart
+void didChangeDependencies() {
+  super.didChangeDependencies();
+  final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+  plantName = args?['plantName'] ?? 'WORKPLACE NOT SELECTED';
+  plantId = args?['plantId'] ?? 0;
+}
 
   final List<Map<String, String>> boxes = [
     {'title': 'CHEMICALS', 'subtitle': 'Chemicals that will be added for treatment.'},

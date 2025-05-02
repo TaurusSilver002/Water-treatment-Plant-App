@@ -18,7 +18,7 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
     emit(RegistrationLoadingState());
 
     try {
-      String? errorMessage = await _authRepo.registerUser(
+      String? result = await _authRepo.registerUser(
         email: event.email,
         password: event.password,
         firstname: event.firstname,
@@ -31,10 +31,10 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
         roleId: event.roleId,
       );
 
-      if (errorMessage == null) {
-        emit(RegistrationSuccessState());
+      if (result != null && !result.contains("error") && !result.contains("failed")) {
+        emit(RegistrationSuccessState(token: result));
       } else {
-        emit(RegistrationFailedState(message: errorMessage));
+        emit(RegistrationFailedState(message: result ?? 'Registration failed'));
       }
     } catch (e) {
       emit(RegistrationFailedState(message: 'An error occurred: ${e.toString()}'));

@@ -11,7 +11,13 @@ class RegistrationInitialState extends RegistrationState {}
 
 class RegistrationLoadingState extends RegistrationState {}
 
-class RegistrationSuccessState extends RegistrationState {}
+class RegistrationSuccessState extends RegistrationState {
+  final String token;
+  const RegistrationSuccessState({required this.token});
+
+  @override
+  List<Object?> get props => [token];
+}
 
 class RegistrationFailedState extends RegistrationState {
   final String message;

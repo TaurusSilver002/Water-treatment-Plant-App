@@ -26,6 +26,10 @@ class AppConfig{
   static const String baseUrl = 'https://api.watershooters.in';
   static const String signlink = '$baseUrl/api/v1/user/register';
   static const String loginlink = '$baseUrl/api/v1/user/login';
+  static const String userlink = '$baseUrl/api/v1/user/me';
+  static const String typelink = '$baseUrl/api/v1/plant/types';
+  static const String plantlink = '$baseUrl/api/v1/plant/getallplants';
+  static const String createplantlink = '$baseUrl/api/v1/plant/createplant';
 }
 class AppImages {
   static const String logo = 'assets/images/shootlogo.png';

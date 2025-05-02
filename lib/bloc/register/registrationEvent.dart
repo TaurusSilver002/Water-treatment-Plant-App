@@ -18,6 +18,7 @@ class RegistrationCreateUserEvent extends RegistrationEvent {
   final String dateOfBirth;
   final String qualification;
   final int roleId;
+  final String? operatorId;
 
   RegistrationCreateUserEvent({
     required this.email,
@@ -30,6 +31,7 @@ class RegistrationCreateUserEvent extends RegistrationEvent {
     required this.dateOfBirth,
     required this.qualification,
     required this.roleId,
+    this.operatorId,
   });
 
   @override
@@ -44,5 +46,6 @@ class RegistrationCreateUserEvent extends RegistrationEvent {
     dateOfBirth,
     qualification,
     roleId,
+    operatorId,
   ];
 }

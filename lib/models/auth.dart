@@ -44,21 +44,17 @@ class AuthRepo {
         ),
       );
 
-      print("Response Data: ${response.data}");
-
       if (response.statusCode == 200) {
         String token = response.data['token'];
         SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', token);
-        return token; // Registration successful, return no error
+        return token;
       } else {
-        return response.data["message"] ?? "Unknown error occurred"; // Extract error message
+        return null;
       }
     } on DioException catch (e) {
       if (e.response != null) {
-        // ✅ Debugging: Print the full error response
         print("Error Response Data: ${e.response?.data}");
-
         return e.response?.data["message"] ?? "Something went wrong.";
       } else {
         return "No response from server. Check your internet connection.";

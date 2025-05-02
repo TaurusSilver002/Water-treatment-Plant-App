@@ -33,7 +33,14 @@ class MyApp extends StatelessWidget {
       '/home':(context) =>const Dashboard(),
       '/profile':(context) =>const Profile(),
       '/contacts':(context)=>const TeamPage(),
-      '/etp':(context)=>const Etp(),
+'/etp': (context) {
+  final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+  return Etp(
+    plantTypeId: args['plantTypeId'] as int,
+    plantTypeName: args['plantTypeName'] as String,
+  );
+},
+
       '/stp':(context)=>const Stp(),
       '/wtp':(context)=>const Wtp(),
       '/etpdata':(context)=>const Etpdataentry(),

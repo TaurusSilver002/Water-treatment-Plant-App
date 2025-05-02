@@ -20,12 +20,12 @@ class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController _lastNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController =
-      TextEditingController();
+  final TextEditingController _confirmPasswordController =TextEditingController();
   final TextEditingController _aadharController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _dobController = TextEditingController();
+  final TextEditingController _operatorIdController = TextEditingController();
 
   int? _selectedRoleId;
   String? _selectedQualification;
@@ -481,6 +481,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 );
               }).toList(),
             ),
+            _buildOperatorIdField(),
           ],
         ),
       ),
@@ -548,7 +549,41 @@ class _SignUpPageState extends State<SignUpPage> {
         _selectedRoleId == null) {
       return false;
     }
+
+    // Additional validation for operator role
+    if (_selectedRoleId == 2) { // Operator role
+      return _operatorIdController.text == 'ABC1234';
+    }
+
     return true;
+  }
+
+  Widget _buildOperatorIdField() {
+    if (_selectedRoleId == 2) { // Show only for operator role
+      return Column(
+        children: [
+          const SizedBox(height: 20),
+          TextFormField(
+            controller: _operatorIdController,
+            decoration: const InputDecoration(
+              labelText: 'Operator ID',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.badge),
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter your operator ID';
+              }
+              if (value != 'ABC1234') {     //id of operator
+                return 'Invalid operator ID';
+              }
+              return null;
+            },
+          ),
+        ],
+      );
+    }
+    return const SizedBox.shrink(); // Hide field for non-operators
   }
 
   void _handleSignUp(BuildContext context) {
@@ -564,6 +599,7 @@ class _SignUpPageState extends State<SignUpPage> {
         dateOfBirth: _dobController.text,
         qualification: _selectedQualification!,
         roleId: _selectedRoleId!,
+        operatorId: _operatorIdController.text,
       );
 
       context.read<RegistrationBloc>().add(registrationEvent);
@@ -582,6 +618,7 @@ class _SignUpPageState extends State<SignUpPage> {
     _phoneController.dispose();
     _addressController.dispose();
     _dobController.dispose();
+    _operatorIdController.dispose();
     super.dispose();
   }
 }
