@@ -1,11 +1,24 @@
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:waterplant/config.dart';
 
 class AuthRepo {
   final Dio _dio;
 
   AuthRepo(this._dio);
+
+  Future<void> _decodeAndStoreToken(String token) async {
+    Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
+    print("Decoded Token: $decodedToken");
+
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('token', token);
+
+    if (decodedToken.containsKey('role')) {
+      await prefs.setInt('role', decodedToken['role']);
+    }
+  }
 
   Future<String?> registerUser({
     required String email,
@@ -46,8 +59,7 @@ class AuthRepo {
 
       if (response.statusCode == 200) {
         String token = response.data['token'];
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        await prefs.setString('token', token);
+        await _decodeAndStoreToken(token);
         return token;
       } else {
         return null;
@@ -87,9 +99,7 @@ class AuthRepo {
 
       if (response.statusCode == 200) {
         String token = response.data['token'];
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        await prefs.setString('token', token);
-
+        await _decodeAndStoreToken(token);
         return token;
       } else {
         return null;
@@ -98,5 +108,5 @@ class AuthRepo {
       print("Login error: $e");
       return null;
     }
-  } //forgotpass
+  }
 }

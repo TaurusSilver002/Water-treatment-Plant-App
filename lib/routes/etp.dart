@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:dio/dio.dart';
+import 'package:waterplant/bloc/createplant/createplant_bloc.dart';
+import 'package:waterplant/bloc/createplant/createplant_state.dart';
 import 'package:waterplant/bloc/plant/plant_bloc.dart';
 import 'package:waterplant/components/customAppBar.dart';
 import 'package:waterplant/components/customdrawer.dart';
 import 'package:waterplant/config.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'package:waterplant/models/plant_type.dart';
 
 class Etp extends StatefulWidget {
@@ -23,24 +27,127 @@ class Etp extends StatefulWidget {
 
 class _EtpState extends State<Etp> {
   late final PlantBloc _plantBloc;
+  late final PlantCreateBloc _plantCreateBloc;
+  int? userRole;
 
   @override
   void initState() {
     super.initState();
     _plantBloc = PlantBloc(plantRepo: PlantRepo(Dio()));
     _plantBloc.add(FetchPlantsByType(widget.plantTypeId));
+    _plantCreateBloc = PlantCreateBloc(PlantRepository(Dio()));
+    _loadUserRole();
+  }
+
+  void _showAddPlantDialog(BuildContext parentContext) {
+    final nameController = TextEditingController();
+    final clientIdController = TextEditingController();
+    final operatorIdController = TextEditingController();
+    final plantTypeIdController =
+        TextEditingController(text: widget.plantTypeId.toString());
+    final addressController = TextEditingController();
+    final capacityController = TextEditingController();
+
+    showDialog(
+      context: parentContext,
+      builder: (dialogContext) {
+        // Use the _plantCreateBloc instance directly
+        return BlocListener<PlantCreateBloc, PlantCreateState>(
+          bloc: _plantCreateBloc,
+          listener: (context, state) {
+            if (state is PlantCreateLoading) {
+              // Optionally show loading indicator
+            } else if (state is PlantCreateSuccess) {
+              Navigator.of(dialogContext).pop(); // Close dialog
+              ScaffoldMessenger.of(parentContext).showSnackBar(
+                const SnackBar(content: Text("Plant created successfully")),
+              );
+              parentContext.read<PlantBloc>().add(FetchPlantsByType(widget.plantTypeId));
+            } else if (state is PlantCreateFailure) {
+              ScaffoldMessenger.of(parentContext).showSnackBar(
+                SnackBar(content: Text("Error: "+state.error)),
+              );
+            }
+          },
+          child: AlertDialog(
+            title: const Text("Add New Plant"),
+            content: SingleChildScrollView(
+              child: Column(
+                children: [
+                  _buildTextField("Plant Name", nameController),
+                  _buildTextField("Client ID", clientIdController),
+                  _buildTextField("Operator ID", operatorIdController),
+                  _buildTextField("Plant Type ID", plantTypeIdController),
+                  _buildTextField("Address", addressController),
+                  _buildTextField("Plant Capacity", capacityController),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text("Cancel"),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  final plant = PlantModel(
+                    plantName: nameController.text,
+                    clientId: int.tryParse(clientIdController.text) ?? 0,
+                    operatorId: int.tryParse(operatorIdController.text) ?? 0,
+                    plantTypeId: int.tryParse(plantTypeIdController.text) ?? 0,
+                    address: addressController.text,
+                    plantCapacity: int.tryParse(capacityController.text) ?? 0,
+                    operationalStatus: true,
+                  );
+                  _plantCreateBloc.add(SubmitPlant(plant));
+                },
+                child: const Text("Submit"),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTextField(String label, TextEditingController controller) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: TextField(
+        controller: controller,
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _loadUserRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      userRole = prefs.getInt('role');
+    });
   }
 
   @override
   void dispose() {
     _plantBloc.close();
+    _plantCreateBloc.close();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
-    return BlocProvider.value(
-      value: _plantBloc,
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider.value(
+          value: _plantBloc,
+        ),
+        BlocProvider.value(
+          value: _plantCreateBloc,
+        ),
+      ],
       child: Scaffold(
         backgroundColor: AppColors.cream,
         appBar: const CustomAppBar(),
@@ -52,7 +159,7 @@ class _EtpState extends State<Etp> {
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Text(
-                'SELECT YOUR WORKPLACE - ${widget.plantTypeName.toUpperCase()}',
+                'SELECT YOUR WORKPLACE - //${widget.plantTypeName.toUpperCase()}',
                 style: const TextStyle(
                   color: AppColors.darkblue,
                   fontSize: 20,
@@ -67,8 +174,9 @@ class _EtpState extends State<Etp> {
                     return const Center(child: CircularProgressIndicator());
                   } else if (state is PlantError) {
                     return Center(
-                        child: Text(state.message,
-                            style: const TextStyle(color: Colors.red)));
+                      child: Text(state.message,
+                          style: const TextStyle(color: Colors.red)),
+                    );
                   } else if (state is PlantLoaded) {
                     final plants = state.plantData;
                     return ListView.builder(
@@ -82,17 +190,18 @@ class _EtpState extends State<Etp> {
                           child: ListTile(
                             contentPadding: const EdgeInsets.all(12),
                             title: Text(name,
-                                style:
-                                    const TextStyle(color: AppColors.cream)),
-                           onTap: () {
-                            Navigator.pushNamed(
-                            context, 
-                            AppRoutes.etpdata,
-                            arguments: {
-                              'plantName': plants[index]['plant_name'],
-                              'plantId': plants[index]['plant_id'],
-                            },
-                            );
+                                style: const TextStyle(color: AppColors.cream)),
+                            onTap: () async {
+                              final prefs = await SharedPreferences.getInstance();
+                              await prefs.setInt('plant_id', plants[index]['plant_id']);
+                              Navigator.pushNamed(
+                                context,
+                                AppRoutes.etpdata,
+                                arguments: {
+                                  'plantName': plants[index]['plant_name'],
+                                  'plantId': plants[index]['plant_id'],
+                                },
+                              );
                             },
                             trailing: const Icon(Icons.arrow_forward_ios,
                                 color: AppColors.yellowochre),
@@ -107,8 +216,7 @@ class _EtpState extends State<Etp> {
             ),
             Container(
               height: 80,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               child: IconButton(
                 icon: const Icon(Icons.arrow_back, color: AppColors.darkblue),
                 onPressed: () => Navigator.pop(context),
@@ -116,6 +224,15 @@ class _EtpState extends State<Etp> {
             ),
           ],
         ),
+        floatingActionButton: userRole == 1
+            ? FloatingActionButton(
+                backgroundColor: AppColors.darkblue,
+                onPressed: () {
+                  _showAddPlantDialog(context);
+                },
+                child: const Icon(Icons.add, color: AppColors.yellowochre),
+              )
+            : null,
       ),
     );
   }

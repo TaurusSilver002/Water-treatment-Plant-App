@@ -20,7 +20,7 @@ class PlantBloc extends Bloc<PlantEvent, PlantState> {
 ) async {
   emit(PlantLoading());
   try {
-    final allPlants = await plantRepo.fetchAllPlants(); // must return the full list
+    final allPlants = await plantRepo.fetchAllPlants();
     final filtered = allPlants
         .where((plant) => plant['plant_type_id'] == event.plantTypeId)
         .toList();

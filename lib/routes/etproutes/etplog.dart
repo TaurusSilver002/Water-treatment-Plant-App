@@ -1,67 +1,42 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:waterplant/bloc/equipmentlog/equipmentlog_bloc.dart';
+import 'package:waterplant/bloc/chemicallog/chemicallog_bloc.dart';
 import 'package:waterplant/components/customAppBar.dart';
 import 'package:waterplant/components/customdrawer.dart';
 import 'package:waterplant/config.dart';
+import 'package:waterplant/models/equiplog.dart';
+import 'package:waterplant/models/chemicallog.dart';
 
 class EtpLog extends StatefulWidget {
-  const EtpLog({super.key});
+  final EquipmentBloc? equipmentBloc; // Make equipmentBloc optional
+  final ChemicallogBloc? chemicallogBloc; // Make chemicallogBloc optional
+
+  const EtpLog({super.key, this.equipmentBloc, this.chemicallogBloc});
 
   @override
   State<EtpLog> createState() => _EtpLogState();
 }
 
 class _EtpLogState extends State<EtpLog> {
+  late final EquipmentBloc _equipmentBloc; // Local instance to use
+  late final ChemicallogBloc _chemicallogBloc; // Local instance to use
   int _selectedTab = 0; // 0=Equipment, 1=Chemical, 2=Flow
-  
-  // Pre-populated dummy data
-  final List<Map<String, String>> equipmentLogs = [
-    {
-      'name': 'A',
-      'status': 'Working',
-      'maintenance': 'Done',
-      'shift': '1',
-      'date': '2023-05-15 08:30',
-    },
-    {
-      'name': 'B',
-      'status': 'Maintenance',
-      'maintenance': 'Not Done',
-      'shift': '2',
-      'date': '2023-05-14 14:15',
-    },
-    {
-      'name': 'C',
-      'status': 'Critical',
-      'maintenance': 'Not Done',
-      'shift': '3',
-      'date': '2023-05-13 10:45',
-    },
-  ];
 
-  final List<Map<String, String>> chemicalLogs = [
-    {
-      'name': 'A',
-      'quantity': '79',
-      'sludge': 'Yes',
-      'shift': '1',
-      'date': '2023-05-15 09:00',
-    },
-    {
-      'name': 'B',
-      'quantity': '79',
-      'sludge': 'Yes',
-      'shift': '1',
-      'date': '2023-05-14 16:30',
-    },
-    {
-      'name': 'C',
-      'quantity': '79',
-      'sludge': 'Yes',
-      'shift': '1',
-      'date': '2023-05-13 11:20',
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _equipmentBloc = widget.equipmentBloc ?? EquipmentBloc(repository: EquipmentRepository());
+    _chemicallogBloc = widget.chemicallogBloc ?? ChemicallogBloc(repository: ChemicalLogRepository());
+    // Only load equipment logs if the default tab is equipment
+    if (_selectedTab == 0) {
+      _equipmentBloc.add(FetchEquipment());
+    } else if (_selectedTab == 1) {
+      _chemicallogBloc.add(FetchChemicallog());
+    }
+  }
 
+  // Pre-populated dummy data for Flow
   final List<Map<String, String>> flowLogs = [
     {
       'name': 'A',
@@ -87,20 +62,20 @@ class _EtpLogState extends State<EtpLog> {
   ];
 
   void _addNewEntry() {
-    String selectedName = 'A';
-    String selectedStatus = 'OK';
-    String selectedMaintenance = 'Done';
-    String selectedShift = '1';
-    String selectedQuantity = '';
-    String selectedSludge = 'Yes';
-    String selectedInlet = '';
-    String selectedOutlet = '';
-
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
+        String selectedName = 'A';
+        String selectedStatus = 'OK';
+        String selectedMaintenance = 'Done';
+        String selectedShift = '1';
+        String selectedQuantity = '';
+        String selectedSludge = 'Yes';
+        String selectedInlet = '';
+        String selectedOutlet = '';
+
         return StatefulBuilder(
-          builder: (context, setState) {
+          builder: (dialogContext, setState) {
             return AlertDialog(
               title: Text(_getDialogTitle()),
               content: SingleChildScrollView(
@@ -121,25 +96,29 @@ class _EtpLogState extends State<EtpLog> {
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => Navigator.pop(dialogContext),
                   child: const Text('Cancel'),
                 ),
                 TextButton(
                   onPressed: () {
                     if (selectedName.isNotEmpty) {
-                      setState(() {
-                        _addToSelectedList(
-                          selectedName,
-                          selectedStatus,
-                          selectedMaintenance,
-                          selectedShift,
-                          selectedQuantity,
-                          selectedSludge,
-                          selectedInlet,
-                          selectedOutlet,
-                        );
-                      });
-                      Navigator.pop(context);
+                      _addToSelectedList(
+                        selectedName,
+                        selectedStatus,
+                        selectedMaintenance,
+                        selectedShift,
+                        selectedQuantity,
+                        selectedSludge,
+                        selectedInlet,
+                        selectedOutlet,
+                      );
+                      Navigator.pop(dialogContext);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                              '${_selectedTab == 0 ? 'Equipment' : _selectedTab == 1 ? 'Chemical' : 'Flow'} log added'),
+                        ),
+                      );
                     }
                   },
                   child: const Text('Add'),
@@ -176,7 +155,7 @@ class _EtpLogState extends State<EtpLog> {
     String selectedInlet,
     String selectedOutlet,
   ) {
-    if (_selectedTab == 0) { // Equipment
+    if (_selectedTab == 0) {
       return [
         DropdownButtonFormField<String>(
           value: selectedName,
@@ -187,7 +166,10 @@ class _EtpLogState extends State<EtpLog> {
             );
           }).toList(),
           onChanged: (value) => setState(() => selectedName = value!),
-          decoration: const InputDecoration(labelText: 'Equipment Name',iconColor: AppColors.yellowochre,),
+          decoration: const InputDecoration(
+            labelText: 'Equipment Name',
+            iconColor: AppColors.yellowochre,
+          ),
         ),
         DropdownButtonFormField<String>(
           value: selectedStatus,
@@ -223,7 +205,7 @@ class _EtpLogState extends State<EtpLog> {
           decoration: const InputDecoration(labelText: 'Shift'),
         ),
       ];
-    } else if (_selectedTab == 1) { // Chemical
+    } else if (_selectedTab == 1) {
       return [
         DropdownButtonFormField<String>(
           value: selectedName,
@@ -237,7 +219,7 @@ class _EtpLogState extends State<EtpLog> {
           decoration: const InputDecoration(labelText: 'Chemical Name'),
         ),
         TextField(
-          onChanged: (value) => selectedQuantity = value,
+          onChanged: (value) => setState(() => selectedQuantity = value),
           decoration: const InputDecoration(labelText: 'Quantity'),
           keyboardType: TextInputType.number,
         ),
@@ -264,7 +246,7 @@ class _EtpLogState extends State<EtpLog> {
           decoration: const InputDecoration(labelText: 'Shift'),
         ),
       ];
-    } else { // Flow
+    } else {
       return [
         DropdownButtonFormField<String>(
           value: selectedName,
@@ -278,12 +260,12 @@ class _EtpLogState extends State<EtpLog> {
           decoration: const InputDecoration(labelText: 'Flow Name'),
         ),
         TextField(
-          onChanged: (value) => selectedInlet = value,
+          onChanged: (value) => setState(() => selectedInlet = value),
           decoration: const InputDecoration(labelText: 'Inlet'),
           keyboardType: TextInputType.number,
         ),
         TextField(
-          onChanged: (value) => selectedOutlet = value,
+          onChanged: (value) => setState(() => selectedOutlet = value),
           decoration: const InputDecoration(labelText: 'Outlet'),
           keyboardType: TextInputType.number,
         ),
@@ -303,8 +285,8 @@ class _EtpLogState extends State<EtpLog> {
   }
 
   void _addToSelectedList(
-    String name, 
-    String status, 
+    String name,
+    String status,
     String maintenance,
     String shift,
     String quantity,
@@ -323,14 +305,14 @@ class _EtpLogState extends State<EtpLog> {
         'maintenance': maintenance,
         'shift': shift,
       });
-      equipmentLogs.add(entry);
+      _equipmentBloc.add(AddEquipmentLog(entry));
     } else if (_selectedTab == 1) {
       entry.addAll({
         'quantity': quantity,
         'sludge': sludge,
         'shift': shift,
       });
-      chemicalLogs.add(entry);
+      _chemicallogBloc.add(AddChemicallog(entry));
     } else {
       entry.addAll({
         'inlet': inlet,
@@ -343,73 +325,248 @@ class _EtpLogState extends State<EtpLog> {
   }
 
   Widget _buildLogList() {
-    final currentList = _selectedTab == 0
-        ? equipmentLogs
-        : _selectedTab == 1
-            ? chemicalLogs
-            : flowLogs;
-
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: currentList.length,
-      itemBuilder: (context, index) {
-        final entry = currentList[index];
-        return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          color: AppColors.lightblue,
-          child: ExpansionTile(
-            title: Text(
-              entry['name']!,
-              style: const TextStyle(color: AppColors.cream),
-            ),
-            iconColor: AppColors.yellowochre,
-            collapsedIconColor: AppColors.yellowochre,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: _buildDetailWidgets(entry),
-                ),
+    if (_selectedTab == 0) {
+      return BlocBuilder<EquipmentBloc, EquipmentState>(
+        bloc: _equipmentBloc,
+        builder: (context, state) {
+          if (state is EquipmentLoading) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (state is EquipmentLoaded) {
+            final equipmentLogs = (state.equipmentData['logs'] as List<dynamic>?)
+                    ?.map((log) => _mapBackendLogToEntry(log))
+                    .toList() ??
+                [];
+            if (equipmentLogs.isEmpty) {
+              return const Center(child: Text('No equipment logs available'));
+            }
+            return ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: equipmentLogs.length,
+              itemBuilder: (context, index) {
+                final entry = equipmentLogs[index];
+                return Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  color: AppColors.lightblue,
+                  child: ExpansionTile(
+                    title: Text(
+                      entry['name'] ?? 'Unknown',
+                      style: const TextStyle(color: AppColors.cream),
+                    ),
+                    iconColor: AppColors.yellowochre,
+                    collapsedIconColor: AppColors.yellowochre,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: _buildDetailWidgets(entry),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          } else if (state is EquipmentError) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Error: ${state.message}'),
+                  ElevatedButton(
+                    onPressed: () => _equipmentBloc.add(FetchEquipment()),
+                    child: const Text('Retry'),
+                  ),
+                ],
               ),
-            ],
-          ),
-        );
-      },
-    );
+            );
+          }
+          return const Center(child: Text('No data available'));
+        },
+      );
+    } else if (_selectedTab == 1) {
+      return BlocBuilder<ChemicallogBloc, ChemicallogState>(
+        bloc: _chemicallogBloc,
+        builder: (context, state) {
+          if (state is ChemicallogLoading) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (state is ChemicallogLoaded) {
+            final chemicalLogs = (state.chemicallogData['logs'] as List<dynamic>?)
+                    ?.map((log) => _mapBackendChemicalLogToEntry(log))
+                    .toList() ??
+                [];
+            if (chemicalLogs.isEmpty) {
+              return const Center(child: Text('No chemical logs available'));
+            }
+            return ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: chemicalLogs.length,
+              itemBuilder: (context, index) {
+                final entry = chemicalLogs[index];
+                return Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  color: AppColors.lightblue,
+                  child: ExpansionTile(
+                    title: Text(
+                      entry['name'] ?? 'Unknown',
+                      style: const TextStyle(color: AppColors.cream),
+                    ),
+                    iconColor: AppColors.yellowochre,
+                    collapsedIconColor: AppColors.yellowochre,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: _buildDetailWidgets(entry),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          } else if (state is ChemicallogError) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Error: ${state.message}'),
+                  ElevatedButton(
+                    onPressed: () => _chemicallogBloc.add(FetchChemicallog()),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            );
+          }
+          return const Center(child: Text('No data available'));
+        },
+      );
+    } else {
+      final currentList = flowLogs;
+      return ListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: currentList.length,
+        itemBuilder: (context, index) {
+          final entry = currentList[index];
+          return Card(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            color: AppColors.lightblue,
+            child: ExpansionTile(
+              title: Text(
+                entry['name']!,
+                style: const TextStyle(color: AppColors.cream),
+              ),
+              iconColor: AppColors.yellowochre,
+              collapsedIconColor: AppColors.yellowochre,
+              children: [
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: _buildDetailWidgets(entry),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    }
+  }
+
+  Map<String, String> _mapBackendLogToEntry(dynamic log) {
+    return {
+      'name': log['equipment_remark'] ?? 'Equipment ${log['equipment_log_id'] ?? ''}',
+      'status': _mapStatus(log['equipment_status'] ?? 0),
+      'maintenance': (log['maintenance_done'] == true) ? 'Done' : 'Not Done',
+      'shift': (log['shift'] != null) ? log['shift'].toString() : 'N/A',
+      'date': _formatDate(log['start_date']),
+    };
+  }
+
+  Map<String, String> _mapBackendChemicalLogToEntry(dynamic log) {
+    return {
+      'name': log['chemical_remark'] ?? 'Chemical ${log['chemical_log_id'] ?? ''}',
+      'quantity': log['quantity']?.toString() ?? 'N/A',
+      'sludge': (log['sludge_discharge'] == true) ? 'Yes' : 'No',
+      'shift': (log['shift'] != null) ? log['shift'].toString() : 'N/A',
+      'date': _formatDate(log['start_date']),
+    };
+  }
+
+  String _mapStatus(int status) {
+    switch (status) {
+      case 0:
+        return 'OK';
+      case 1:
+        return 'Warning';
+      case 2:
+        return 'Critical';
+      default:
+        return 'Unknown';
+    }
+  }
+
+  String _formatDate(dynamic date) {
+    if (date == null) return 'N/A';
+    try {
+      final dateTime = DateTime.parse(date).toLocal();
+      return dateTime.toString().substring(0, 16);
+    } catch (_) {
+      return 'N/A';
+    }
   }
 
   List<Widget> _buildDetailWidgets(Map<String, String> entry) {
-    if (_selectedTab == 0) { // Equipment
+    if (_selectedTab == 0) {
       return [
-        Text('Status: ${entry['status']}', style: const TextStyle(color: AppColors.cream)),
+        Text('Status: ${entry['status'] ?? 'N/A'}',
+            style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
-        Text('Maintenance: ${entry['maintenance']}', style: const TextStyle(color: AppColors.cream)),
+        Text('Maintenance: ${entry['maintenance'] ?? 'N/A'}',
+            style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
-        Text('Shift: ${entry['shift']}', style: const TextStyle(color: AppColors.cream)),
+        Text('Shift: ${entry['shift'] ?? 'N/A'}',
+            style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
-        Text('Date: ${entry['date']}', style: const TextStyle(color: AppColors.cream)),
+        Text('Date: ${entry['date'] ?? 'N/A'}',
+            style: const TextStyle(color: AppColors.cream)),
       ];
-    } else if (_selectedTab == 1) { // Chemical
+    } else if (_selectedTab == 1) {
       return [
-        Text('Quantity: ${entry['quantity']}', style: const TextStyle(color: AppColors.cream)),
+        Text('Quantity: ${entry['quantity']}',
+            style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
-        Text('Sludge: ${entry['sludge']}', style: const TextStyle(color: AppColors.cream)),
+        Text('Sludge: ${entry['sludge']}',
+            style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
-        Text('Shift: ${entry['shift']}', style: const TextStyle(color: AppColors.cream)),
+        Text('Shift: ${entry['shift']}',
+            style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
-        Text('Date: ${entry['date']}', style: const TextStyle(color: AppColors.cream)),
+        Text('Date: ${entry['date']}',
+            style: const TextStyle(color: AppColors.cream)),
       ];
-    } else { // Flow
+    } else {
       return [
-        Text('Inlet: ${entry['inlet']}', style: const TextStyle(color: AppColors.cream)),
+        Text('Inlet: ${entry['inlet']}',
+            style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
-        Text('Outlet: ${entry['outlet']}', style: const TextStyle(color: AppColors.cream)),
+        Text('Outlet: ${entry['outlet']}',
+            style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
-        Text('Shift: ${entry['shift']}', style: const TextStyle(color: AppColors.cream)),
+        Text('Shift: ${entry['shift']}',
+            style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
-        Text('Date: ${entry['date']}', style: const TextStyle(color: AppColors.cream)),
+        Text('Date: ${entry['date']}',
+            style: const TextStyle(color: AppColors.cream)),
       ];
     }
   }
@@ -454,12 +611,16 @@ class _EtpLogState extends State<EtpLog> {
       onPressed: () {
         setState(() {
           _selectedTab = index;
+          if (index == 0) {
+            _equipmentBloc.add(FetchEquipment());
+          } else if (index == 1) {
+            _chemicallogBloc.add(FetchChemicallog());
+          }
         });
       },
       style: TextButton.styleFrom(
-        backgroundColor: _selectedTab == index
-            ? AppColors.darkblue
-            : Colors.transparent,
+        backgroundColor:
+            _selectedTab == index ? AppColors.darkblue : Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
         ),
@@ -468,12 +629,24 @@ class _EtpLogState extends State<EtpLog> {
       child: Text(
         text,
         style: TextStyle(
-          color: _selectedTab == index
-              ? AppColors.cream
-              : AppColors.darkblue,
+          color:
+              _selectedTab == index ? AppColors.cream : AppColors.darkblue,
           fontWeight: FontWeight.bold,
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    // Only dispose of the EquipmentBloc if it was created locally
+    if (widget.equipmentBloc == null) {
+      _equipmentBloc.close();
+    }
+    // Only dispose of the ChemicallogBloc if it was created locally
+    if (widget.chemicallogBloc == null) {
+      _chemicallogBloc.close();
+    }
+    super.dispose();
   }
 }

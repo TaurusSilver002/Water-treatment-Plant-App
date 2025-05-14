@@ -77,8 +77,6 @@ class PlantModel {
   final String plantName;
   final String address;
   final int plantCapacity;
-  final String hotelName;
-  final String plantDescription;
   final bool operationalStatus;
 
   PlantModel({
@@ -88,8 +86,6 @@ class PlantModel {
     required this.plantName,
     required this.address,
     required this.plantCapacity,
-    required this.hotelName,
-    required this.plantDescription,
     required this.operationalStatus,
   });
 
@@ -100,8 +96,6 @@ class PlantModel {
         'plant_name': plantName,
         'address': address,
         'plant_capacity': plantCapacity,
-        'hotel_name': hotelName,
-        'plant_description': plantDescription,
         'operational_status': operationalStatus,
       };
 }
@@ -110,11 +104,27 @@ class PlantRepository {
   final Dio _dio;
 PlantRepository(this._dio);
   Future<bool> postPlant(PlantModel plant) async {
-    final response = await http.post(
-      Uri.parse(AppConfig.createplantlink),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(plant.toJson()),
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    if (token == null) {
+      throw Exception('No authentication token found');
+    }
+
+    final response = await _dio.post(
+      AppConfig.createplantlink,
+      options: Options(
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      ),
+      data: jsonEncode(plant.toJson()),
     );
     return response.statusCode == 200 || response.statusCode == 201;
+  } catch (e) {
+    throw Exception('Error posting plant data: ${e.toString()}');
   }
+}
 }

@@ -30,6 +30,9 @@ class AppConfig{
   static const String typelink = '$baseUrl/api/v1/plant/types';
   static const String plantlink = '$baseUrl/api/v1/plant/getallplants';
   static const String createplantlink = '$baseUrl/api/v1/plant/createplant';
+  static const String equiplog= '$baseUrl/api/v1/logs/equipment';
+  static const String chemicallog= '$baseUrl/api/v1/logs/chemical';
+  static const String flowlog= '$baseUrl/api/v1/logs/flow';
 }
 class AppImages {
   static const String logo = 'assets/images/shootlogo.png';
