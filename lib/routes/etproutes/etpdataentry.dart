@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:waterplant/bloc/chemicallog/chemicallog_bloc.dart';
 import 'package:waterplant/bloc/equipmentlog/equipmentlog_bloc.dart';
+import 'package:waterplant/bloc/flowlog/flowlog_bloc.dart';
 import 'package:waterplant/components/CustomAppBar.dart';
 import 'package:waterplant/components/customdrawer.dart';
 import 'package:waterplant/config.dart';
 import 'package:waterplant/models/chemicallog.dart';
 import 'package:waterplant/models/equiplog.dart';
+import 'package:waterplant/models/flowlog.dart';
 import 'package:waterplant/routes/etproutes/etplog.dart';
 
 class Etpdataentry extends StatefulWidget {
@@ -21,6 +23,7 @@ class _EtpdataentryState extends State<Etpdataentry> {
   late int plantId;
   late final EquipmentBloc _equipmentBloc;
   late final ChemicallogBloc _chemicallogBloc;
+  late final FlowlogBloc _flowBloc;
 
   @override
   void initState() {
@@ -33,6 +36,9 @@ class _EtpdataentryState extends State<Etpdataentry> {
       repository: ChemicalLogRepository(),
     );
     _chemicallogBloc.add(FetchChemicallog());
+    _flowBloc = FlowlogBloc(
+      repository: FlowLogRepository(),
+    );
   }
 
   @override
@@ -72,7 +78,7 @@ class _EtpdataentryState extends State<Etpdataentry> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => EtpLog(equipmentBloc: _equipmentBloc,chemicallogBloc: _chemicallogBloc,),
+            builder: (context) => EtpLog(equipmentBloc: _equipmentBloc, chemicallogBloc: _chemicallogBloc, flowlogBloc: _flowBloc),
             settings: const RouteSettings(name: AppRoutes.etplog),
           ),
         );
@@ -89,6 +95,9 @@ class _EtpdataentryState extends State<Etpdataentry> {
         ),
         BlocProvider.value(
           value: _chemicallogBloc,
+        ),
+        BlocProvider.value(
+          value: _flowBloc,
         ),
       ],
       child: Scaffold(

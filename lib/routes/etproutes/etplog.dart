@@ -2,17 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:waterplant/bloc/equipmentlog/equipmentlog_bloc.dart';
 import 'package:waterplant/bloc/chemicallog/chemicallog_bloc.dart';
+import 'package:waterplant/bloc/flowlog/flowlog_bloc.dart';
 import 'package:waterplant/components/customAppBar.dart';
 import 'package:waterplant/components/customdrawer.dart';
 import 'package:waterplant/config.dart';
 import 'package:waterplant/models/equiplog.dart';
 import 'package:waterplant/models/chemicallog.dart';
+import 'package:waterplant/models/flowlog.dart';
 
 class EtpLog extends StatefulWidget {
   final EquipmentBloc? equipmentBloc; // Make equipmentBloc optional
-  final ChemicallogBloc? chemicallogBloc; // Make chemicallogBloc optional
+  final ChemicallogBloc? chemicallogBloc;
+  final FlowlogBloc? flowlogBloc;
 
-  const EtpLog({super.key, this.equipmentBloc, this.chemicallogBloc});
+  const EtpLog({super.key, this.equipmentBloc, this.chemicallogBloc, this.flowlogBloc});
 
   @override
   State<EtpLog> createState() => _EtpLogState();
@@ -21,6 +24,7 @@ class EtpLog extends StatefulWidget {
 class _EtpLogState extends State<EtpLog> {
   late final EquipmentBloc _equipmentBloc; // Local instance to use
   late final ChemicallogBloc _chemicallogBloc; // Local instance to use
+  late final FlowlogBloc _flowlogBloc; // Local instance to use
   int _selectedTab = 0; // 0=Equipment, 1=Chemical, 2=Flow
 
   @override
@@ -28,38 +32,17 @@ class _EtpLogState extends State<EtpLog> {
     super.initState();
     _equipmentBloc = widget.equipmentBloc ?? EquipmentBloc(repository: EquipmentRepository());
     _chemicallogBloc = widget.chemicallogBloc ?? ChemicallogBloc(repository: ChemicalLogRepository());
+    _flowlogBloc = widget.flowlogBloc ?? FlowlogBloc(repository: FlowLogRepository());
+
     // Only load equipment logs if the default tab is equipment
     if (_selectedTab == 0) {
       _equipmentBloc.add(FetchEquipment());
     } else if (_selectedTab == 1) {
       _chemicallogBloc.add(FetchChemicallog());
+    } else if (_selectedTab == 2) {
+      _flowlogBloc.add(FetchFlowlog());
     }
   }
-
-  // Pre-populated dummy data for Flow
-  final List<Map<String, String>> flowLogs = [
-    {
-      'name': 'A',
-      'inlet': '40',
-      'outlet': '13',
-      'shift': '2',
-      'date': '2023-05-15 07:45',
-    },
-    {
-      'name': 'B',
-      'inlet': '40',
-      'outlet': '13',
-      'shift': '2',
-      'date': '2023-05-14 15:30',
-    },
-    {
-      'name': 'C',
-      'inlet': '40',
-      'outlet': '13',
-      'shift': '2',
-      'date': '2023-05-13 12:15',
-    },
-  ];
 
   void _addNewEntry() {
     showDialog(
@@ -313,13 +296,13 @@ class _EtpLogState extends State<EtpLog> {
         'shift': shift,
       });
       _chemicallogBloc.add(AddChemicallog(entry));
-    } else {
+    } else if (_selectedTab == 2) {
       entry.addAll({
         'inlet': inlet,
         'outlet': outlet,
         'shift': shift,
       });
-      flowLogs.add(entry);
+      _flowlogBloc.add(AddFlowlog(entry));
     }
     setState(() {});
   }
@@ -448,35 +431,64 @@ class _EtpLogState extends State<EtpLog> {
         },
       );
     } else {
-      final currentList = flowLogs;
-      return ListView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: currentList.length,
-        itemBuilder: (context, index) {
-          final entry = currentList[index];
-          return Card(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            color: AppColors.lightblue,
-            child: ExpansionTile(
-              title: Text(
-                entry['name']!,
-                style: const TextStyle(color: AppColors.cream),
-              ),
-              iconColor: AppColors.yellowochre,
-              collapsedIconColor: AppColors.yellowochre,
-              children: [
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: _buildDetailWidgets(entry),
+      return BlocBuilder<FlowlogBloc, FlowlogState>(
+        bloc: _flowlogBloc,
+        builder: (context, state) {
+          if (state is FlowlogLoading) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (state is FlowlogLoaded) {
+            final flowLogs = (state.flowlogData['logs'] as List<dynamic>?)
+                    ?.map((log) => _mapBackendFlowLogToEntry(log))
+                    .toList() ??
+                [];
+            if (flowLogs.isEmpty) {
+              return const Center(child: Text('No flow logs available'));
+            }
+            return ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: flowLogs.length,
+              itemBuilder: (context, index) {
+                final entry = flowLogs[index];
+                return Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  color: AppColors.lightblue,
+                  child: ExpansionTile(
+                    title: Text(
+                      entry['name'] ?? 'Unknown',
+                      style: const TextStyle(color: AppColors.cream),
+                    ),
+                    iconColor: AppColors.yellowochre,
+                    collapsedIconColor: AppColors.yellowochre,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: _buildDetailWidgets(entry),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
-          );
+                );
+              },
+            );
+          } else if (state is FlowlogError) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Error: ${state.message}'),
+                  ElevatedButton(
+                    onPressed: () => _flowlogBloc.add(FetchFlowlog()),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            );
+          }
+          return const Center(child: Text('No data available'));
         },
       );
     }
@@ -497,6 +509,16 @@ class _EtpLogState extends State<EtpLog> {
       'name': log['chemical_remark'] ?? 'Chemical ${log['chemical_log_id'] ?? ''}',
       'quantity': log['quantity']?.toString() ?? 'N/A',
       'sludge': (log['sludge_discharge'] == true) ? 'Yes' : 'No',
+      'shift': (log['shift'] != null) ? log['shift'].toString() : 'N/A',
+      'date': _formatDate(log['start_date']),
+    };
+  }
+
+  Map<String, String> _mapBackendFlowLogToEntry(dynamic log) {
+    return {
+      'name': log['flow_remark'] ?? 'Flow ${log['flow_log_id'] ?? ''}',
+      'inlet': log['inlet']?.toString() ?? 'N/A',
+      'outlet': log['outlet']?.toString() ?? 'N/A',
       'shift': (log['shift'] != null) ? log['shift'].toString() : 'N/A',
       'date': _formatDate(log['start_date']),
     };
@@ -615,6 +637,8 @@ class _EtpLogState extends State<EtpLog> {
             _equipmentBloc.add(FetchEquipment());
           } else if (index == 1) {
             _chemicallogBloc.add(FetchChemicallog());
+          } else if (index == 2) {
+            _flowlogBloc.add(FetchFlowlog());
           }
         });
       },
@@ -639,14 +663,13 @@ class _EtpLogState extends State<EtpLog> {
 
   @override
   void dispose() {
-    // Only dispose of the EquipmentBloc if it was created locally
     if (widget.equipmentBloc == null) {
       _equipmentBloc.close();
     }
-    // Only dispose of the ChemicallogBloc if it was created locally
     if (widget.chemicallogBloc == null) {
       _chemicallogBloc.close();
     }
+    _flowlogBloc.close();
     super.dispose();
   }
 }
