@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:waterplant/bloc/equipmentlog/equipmentlog_bloc.dart';
 import 'package:waterplant/bloc/chemicallog/chemicallog_bloc.dart';
 import 'package:waterplant/bloc/flowlog/flowlog_bloc.dart';
@@ -9,9 +10,10 @@ import 'package:waterplant/config.dart';
 import 'package:waterplant/models/equiplog.dart';
 import 'package:waterplant/models/chemicallog.dart';
 import 'package:waterplant/models/flowlog.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class EtpLog extends StatefulWidget {
-  final EquipmentBloc? equipmentBloc; // Make equipmentBloc optional
+  final EquipmentBloc? equipmentBloc;
   final ChemicallogBloc? chemicallogBloc;
   final FlowlogBloc? flowlogBloc;
 
@@ -22,10 +24,11 @@ class EtpLog extends StatefulWidget {
 }
 
 class _EtpLogState extends State<EtpLog> {
-  late final EquipmentBloc _equipmentBloc; // Local instance to use
-  late final ChemicallogBloc _chemicallogBloc; // Local instance to use
-  late final FlowlogBloc _flowlogBloc; // Local instance to use
+  late final EquipmentBloc _equipmentBloc;
+  late final ChemicallogBloc _chemicallogBloc;
+  late final FlowlogBloc _flowlogBloc;
   int _selectedTab = 0; // 0=Equipment, 1=Chemical, 2=Flow
+  int? _userRole;
 
   @override
   void initState() {
@@ -33,8 +36,7 @@ class _EtpLogState extends State<EtpLog> {
     _equipmentBloc = widget.equipmentBloc ?? EquipmentBloc(repository: EquipmentRepository());
     _chemicallogBloc = widget.chemicallogBloc ?? ChemicallogBloc(repository: ChemicalLogRepository());
     _flowlogBloc = widget.flowlogBloc ?? FlowlogBloc(repository: FlowLogRepository());
-
-    // Only load equipment logs if the default tab is equipment
+    _loadUserRole();
     if (_selectedTab == 0) {
       _equipmentBloc.add(FetchEquipment());
     } else if (_selectedTab == 1) {
@@ -42,6 +44,13 @@ class _EtpLogState extends State<EtpLog> {
     } else if (_selectedTab == 2) {
       _flowlogBloc.add(FetchFlowlog());
     }
+  }
+
+  Future<void> _loadUserRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _userRole = prefs.getInt('role');
+    });
   }
 
   void _addNewEntry() {
@@ -56,6 +65,8 @@ class _EtpLogState extends State<EtpLog> {
         String selectedSludge = 'Yes';
         String selectedInlet = '';
         String selectedOutlet = '';
+        String selectedInletImage = '';
+        String selectedOutletImage = '';
 
         return StatefulBuilder(
           builder: (dialogContext, setState) {
@@ -74,6 +85,8 @@ class _EtpLogState extends State<EtpLog> {
                     selectedSludge,
                     selectedInlet,
                     selectedOutlet,
+                    selectedInletImage,
+                    selectedOutletImage,
                   ),
                 ),
               ),
@@ -94,6 +107,8 @@ class _EtpLogState extends State<EtpLog> {
                         selectedSludge,
                         selectedInlet,
                         selectedOutlet,
+                        selectedInletImage,
+                        selectedOutletImage,
                       );
                       Navigator.pop(dialogContext);
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -137,6 +152,8 @@ class _EtpLogState extends State<EtpLog> {
     String selectedSludge,
     String selectedInlet,
     String selectedOutlet,
+    String selectedInletImage,
+    String selectedOutletImage,
   ) {
     if (_selectedTab == 0) {
       return [
@@ -244,13 +261,23 @@ class _EtpLogState extends State<EtpLog> {
         ),
         TextField(
           onChanged: (value) => setState(() => selectedInlet = value),
-          decoration: const InputDecoration(labelText: 'Inlet'),
+          decoration: const InputDecoration(labelText: 'Inlet Value'),
           keyboardType: TextInputType.number,
         ),
         TextField(
           onChanged: (value) => setState(() => selectedOutlet = value),
-          decoration: const InputDecoration(labelText: 'Outlet'),
+          decoration: const InputDecoration(labelText: 'Outlet Value'),
           keyboardType: TextInputType.number,
+        ),
+        TextField(
+          onChanged: (value) => setState(() => selectedInletImage = value),
+          decoration: const InputDecoration(labelText: 'Inlet Image URL'),
+          keyboardType: TextInputType.url,
+        ),
+        TextField(
+          onChanged: (value) => setState(() => selectedOutletImage = value),
+          decoration: const InputDecoration(labelText: 'Outlet Image URL'),
+          keyboardType: TextInputType.url,
         ),
         DropdownButtonFormField<String>(
           value: selectedShift,
@@ -276,6 +303,8 @@ class _EtpLogState extends State<EtpLog> {
     String sludge,
     String inlet,
     String outlet,
+    String inletImage,
+    String outletImage,
   ) {
     final entry = {
       'name': name,
@@ -298,9 +327,11 @@ class _EtpLogState extends State<EtpLog> {
       _chemicallogBloc.add(AddChemicallog(entry));
     } else if (_selectedTab == 2) {
       entry.addAll({
-        'inlet': inlet,
-        'outlet': outlet,
+        'inlet_value': inlet,
+        'outlet_value': outlet,
         'shift': shift,
+        'inlet_image': inletImage,
+        'outlet_image': outletImage,
       });
       _flowlogBloc.add(AddFlowlog(entry));
     }
@@ -340,8 +371,7 @@ class _EtpLogState extends State<EtpLog> {
                     collapsedIconColor: AppColors.yellowochre,
                     children: [
                       Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: _buildDetailWidgets(entry),
@@ -401,8 +431,7 @@ class _EtpLogState extends State<EtpLog> {
                     collapsedIconColor: AppColors.yellowochre,
                     children: [
                       Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: _buildDetailWidgets(entry),
@@ -439,6 +468,7 @@ class _EtpLogState extends State<EtpLog> {
           } else if (state is FlowlogLoaded) {
             final flowLogs = (state.flowlogData['logs'] as List<dynamic>?)
                     ?.map((log) => _mapBackendFlowLogToEntry(log))
+                    .where((entry) => entry.isNotEmpty)
                     .toList() ??
                 [];
             if (flowLogs.isEmpty) {
@@ -462,8 +492,7 @@ class _EtpLogState extends State<EtpLog> {
                     collapsedIconColor: AppColors.yellowochre,
                     children: [
                       Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: _buildDetailWidgets(entry),
@@ -515,12 +544,17 @@ class _EtpLogState extends State<EtpLog> {
   }
 
   Map<String, String> _mapBackendFlowLogToEntry(dynamic log) {
+    if (log['del_flag'] == true) {
+      return {};
+    }
     return {
       'name': log['flow_remark'] ?? 'Flow ${log['flow_log_id'] ?? ''}',
-      'inlet': log['inlet']?.toString() ?? 'N/A',
-      'outlet': log['outlet']?.toString() ?? 'N/A',
+      'inlet': log['inlet_value']?.toString() ?? 'N/A',
+      'outlet': log['outlet_value']?.toString() ?? 'N/A',
       'shift': (log['shift'] != null) ? log['shift'].toString() : 'N/A',
       'date': _formatDate(log['start_date']),
+      'inlet_image': log['inlet_image']?.toString() ?? 'N/A',
+      'outlet_image': log['outlet_image']?.toString() ?? 'N/A',
     };
   }
 
@@ -581,9 +615,43 @@ class _EtpLogState extends State<EtpLog> {
         Text('Inlet: ${entry['inlet']}',
             style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
+        if (entry['inlet_image'] != 'N/A') ...[
+          const Text('Inlet Image:',
+              style: TextStyle(color: AppColors.cream)),
+          const SizedBox(height: 8),
+          CachedNetworkImage(
+            imageUrl: entry['inlet_image']!,
+            height: 100,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            placeholder: (context, url) =>
+                const Center(child: CircularProgressIndicator()),
+            errorWidget: (context, url, error) =>
+                const Text('Error loading image',
+                    style: TextStyle(color: AppColors.cream)),
+          ),
+          const SizedBox(height: 8),
+        ],
         Text('Outlet: ${entry['outlet']}',
             style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
+        if (entry['outlet_image'] != 'N/A') ...[
+          const Text('Outlet Image:',
+              style: TextStyle(color: AppColors.cream)),
+          const SizedBox(height: 8),
+          CachedNetworkImage(
+            imageUrl: entry['outlet_image']!,
+            height: 100,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            placeholder: (context, url) =>
+                const Center(child: CircularProgressIndicator()),
+            errorWidget: (context, url, error) =>
+                const Text('Error loading image',
+                    style: TextStyle(color: AppColors.cream)),
+          ),
+          const SizedBox(height: 8),
+        ],
         Text('Shift: ${entry['shift']}',
             style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
@@ -620,11 +688,13 @@ class _EtpLogState extends State<EtpLog> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.darkblue,
-        onPressed: _addNewEntry,
-        child: const Icon(Icons.add, color: AppColors.yellowochre),
-      ),
+      floatingActionButton: (_userRole == 2)
+          ? null
+          : FloatingActionButton(
+              backgroundColor: AppColors.darkblue,
+              onPressed: _addNewEntry,
+              child: const Icon(Icons.add, color: AppColors.yellowochre),
+            ),
     );
   }
 
@@ -653,8 +723,7 @@ class _EtpLogState extends State<EtpLog> {
       child: Text(
         text,
         style: TextStyle(
-          color:
-              _selectedTab == index ? AppColors.cream : AppColors.darkblue,
+          color: _selectedTab == index ? AppColors.cream : AppColors.darkblue,
           fontWeight: FontWeight.bold,
         ),
       ),
@@ -669,7 +738,9 @@ class _EtpLogState extends State<EtpLog> {
     if (widget.chemicallogBloc == null) {
       _chemicallogBloc.close();
     }
-    _flowlogBloc.close();
+    if (widget.flowlogBloc == null) {
+      _flowlogBloc.close();
+    }
     super.dispose();
   }
 }

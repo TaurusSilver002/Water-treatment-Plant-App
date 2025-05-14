@@ -60,16 +60,21 @@ class EquipmentRepository {
     if (token == null) {
       throw Exception('No authentication token found');
     }
-
+    final prefs = await SharedPreferences.getInstance();
+    final plantId = prefs.getInt('plant_id');
+    if (plantId == null) {
+      throw Exception('No plant_id found in shared preferences');
+    }
     try {
       final response = await dio.post(
-        AppConfig.equiplog, // Use the full URL directly
+        AppConfig.equiplog,
         data: {
-          'equipment_remark': log['name'],
+          'plant_id': plantId,
+          'plant_equipment_id': 0,
           'equipment_status': _mapStatusToInt(log['status']!),
           'maintenance_done': log['maintenance'] == 'Done',
+          'equipment_remark': log['name'],
           'shift': int.parse(log['shift']!),
-          'start_date': DateTime.parse(log['date']!).toUtc().toIso8601String(),
         },
         options: Options(
           headers: {
@@ -101,8 +106,6 @@ class EquipmentRepository {
         return 0;
     }
   }
-
-  
 }
 
 
