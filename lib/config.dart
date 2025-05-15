@@ -21,6 +21,7 @@ class AppRoutes {
   static const etpequip = '/etpequip';
   static const etplog = '/etplog';
   static const splash = '/splash';
+  static const etpparam = '/etpparam';
 }
 class AppConfig{
   static const String baseUrl = 'https://api.watershooters.in';
@@ -30,20 +31,28 @@ class AppConfig{
   static const String typelink = '$baseUrl/api/v1/plant/types';
   static const String plantlink = '$baseUrl/api/v1/plant/getallplants';
   static const String createplantlink = '$baseUrl/api/v1/plant/createplant';
+//getlogs
   static const String equiplog= '$baseUrl/api/v1/logs/equipment';
   static const String chemicallog= '$baseUrl/api/v1/logs/chemical';
   static const String flowlog= '$baseUrl/api/v1/logs/flow';
+  static const String parameterlog= '$baseUrl/api/v1/logs/flowparameter';
+//createlogs
   static const String equiplogadd= '$baseUrl/api/v1/logs/create/equipment';
   static const String chemicallogadd= '$baseUrl/api/v1/logs/create/chemical';
   static const String flowlogadd= '$baseUrl/api/v1/logs/create/flow';
-  static const String parameterlog= '$baseUrl/api/v1/logs/flowparameter';
   static const String parameterlogadd= '$baseUrl/api/v1/logs/create/flowparameter';
+//editlogs
+  static const String equiplogedit= '$baseUrl/api/v1/logs/edit/equipment';
+  static const String chemicallogedit= '$baseUrl/api/v1/logs/edit/chemical';    
+  static const String flowlogedit= '$baseUrl/api/v1/logs/edit/flow';
+  static const String parameterlogedit= '$baseUrl/api/v1/logs/edit/flowparameter';
 
   static const String plantequip = '$baseUrl/plant-equipment/plant';
   static const String plantequipadd = '$baseUrl/plant-equipment/create';
   static const String plantchem = '$baseUrl/plant-chemical/plant';
   static const String plantchemadd = '$baseUrl/plant-chemical/create';
-
+  static const String plantparam = '$baseUrl/plant-flow-parameter/plant';
+  static const String plantparamadd = '$baseUrl/plant-flow-parameter/create';
 
 }
 class AppImages {

@@ -10,6 +10,7 @@ import 'package:watershooters/routes/etproutes/etpdataentry.dart';
 import 'package:watershooters/routes/etproutes/etpequip.dart';
 import 'package:watershooters/routes/etproutes/etpflow.dart';
 import 'package:watershooters/routes/etproutes/etplog.dart';
+import 'package:watershooters/routes/etproutes/etpparam.dart';
 import 'package:watershooters/routes/profile.dart';
 import 'package:watershooters/routes/stp.dart';
 import 'package:watershooters/routes/terms.dart';
@@ -47,6 +48,7 @@ class MyApp extends StatelessWidget {
       '/etpchem':(context)=>const EtpChemical(),
       '/etpflow':(context)=>const EtpFlow(),
       '/etpequip':(context)=>const EtpEquip(),
+      '/etpparam':(context)=>const EtpParam(),
       '/etplog':(context)=>const EtpLog(),
       '/terms':(context)=>const TermsandConditions(),
       '/splash':(context) => const SplashScreen(),

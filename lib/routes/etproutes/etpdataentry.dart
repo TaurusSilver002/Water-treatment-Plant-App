@@ -61,6 +61,7 @@ class _EtpdataentryState extends State<Etpdataentry> {
     },
     {'title': 'EQUIPMENTS', 'subtitle': 'Equipment used for treatment'},
     {'title': 'LOGS', 'subtitle': 'Data entry field'},
+    {'title': 'PARAMETERS', 'subtitle': 'Plant parameters for treatment'},
   ];
 
   void _navigateToNextPage(String boxName) {
@@ -82,6 +83,9 @@ class _EtpdataentryState extends State<Etpdataentry> {
             settings: const RouteSettings(name: AppRoutes.etplog),
           ),
         );
+        break;
+      case 'PARAMETERS':
+        Navigator.pushNamed(context, AppRoutes.etpparam);
         break;
     }
   }
