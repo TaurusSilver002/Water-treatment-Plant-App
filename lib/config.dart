@@ -36,6 +36,14 @@ class AppConfig{
   static const String equiplogadd= '$baseUrl/api/v1/logs/create/equipment';
   static const String chemicallogadd= '$baseUrl/api/v1/logs/create/chemical';
   static const String flowlogadd= '$baseUrl/api/v1/logs/create/flow';
+  static const String parameterlog= '$baseUrl/api/v1/logs/flowparameter';
+  static const String parameterlogadd= '$baseUrl/api/v1/logs/create/flowparameter';
+
+  static const String plantequip = '$baseUrl/plant-equipment/plant';
+  static const String plantequipadd = '$baseUrl/plant-equipment/create';
+  static const String plantchem = '$baseUrl/plant-chemical/plant';
+  static const String plantchemadd = '$baseUrl/plant-chemical/create';
+
 
 }
 class AppImages {

@@ -8,20 +8,23 @@ import 'package:image_picker/image_picker.dart';
 import 'package:watershooters/bloc/equipmentlog/equipmentlog_bloc.dart';
 import 'package:watershooters/bloc/chemicallog/chemicallog_bloc.dart';
 import 'package:watershooters/bloc/flowlog/flowlog_bloc.dart';
+import 'package:watershooters/bloc/parameterlog/parameterlog_bloc.dart';
 import 'package:watershooters/components/customAppBar.dart';
 import 'package:watershooters/components/customdrawer.dart';
 import 'package:watershooters/config.dart';
 import 'package:watershooters/models/equiplog.dart';
 import 'package:watershooters/models/chemicallog.dart';
 import 'package:watershooters/models/flowlog.dart';
+import 'package:watershooters/models/parameterlog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class EtpLog extends StatefulWidget {
   final EquipmentBloc? equipmentBloc;
   final ChemicallogBloc? chemicallogBloc;
   final FlowlogBloc? flowlogBloc;
+  final ParameterlogBloc? parameterlogBloc;
 
-  const EtpLog({super.key, this.equipmentBloc, this.chemicallogBloc, this.flowlogBloc});
+  const EtpLog({super.key, this.equipmentBloc, this.chemicallogBloc, this.flowlogBloc, this.parameterlogBloc});
 
   @override
   State<EtpLog> createState() => _EtpLogState();
@@ -31,7 +34,8 @@ class _EtpLogState extends State<EtpLog> {
   late final EquipmentBloc _equipmentBloc;
   late final ChemicallogBloc _chemicallogBloc;
   late final FlowlogBloc _flowlogBloc;
-  int _selectedTab = 0; // 0=Equipment, 1=Chemical, 2=Flow
+  late final ParameterlogBloc _parameterlogBloc;
+  int _selectedTab = 0; // 0=Equipment, 1=Chemical, 2=Flow, 3=Parameter
   int? _userRole;
 
   @override
@@ -40,6 +44,7 @@ class _EtpLogState extends State<EtpLog> {
     _equipmentBloc = widget.equipmentBloc ?? EquipmentBloc(repository: EquipmentRepository());
     _chemicallogBloc = widget.chemicallogBloc ?? ChemicallogBloc(repository: ChemicalLogRepository());
     _flowlogBloc = widget.flowlogBloc ?? FlowlogBloc(repository: FlowLogRepository());
+    _parameterlogBloc = widget.parameterlogBloc ?? ParameterlogBloc(repository: ParameterLogRepository());
     _loadUserRole();
     if (_selectedTab == 0) {
       _equipmentBloc.add(FetchEquipment());
@@ -47,6 +52,8 @@ class _EtpLogState extends State<EtpLog> {
       _chemicallogBloc.add(FetchChemicallog());
     } else if (_selectedTab == 2) {
       _flowlogBloc.add(FetchFlowlog());
+    } else if (_selectedTab == 3) {
+      _parameterlogBloc.add(FetchParameterlog());
     }
   }
 
@@ -80,60 +87,63 @@ class _EtpLogState extends State<EtpLog> {
         String? outletImageBase64;
         int selectedFlowShift = 1;
         String? errorText;
+        // --- Parameter log fields ---
+        int selectedParameterId = 0;
+        String selectedParameterValue = '';
+        int selectedParameterShift = 1;
 
+        Future<void> pickImage(bool isInlet) async {
+          final ImagePicker picker = ImagePicker();
+          // Show dialog to choose camera or gallery
+          final source = await showDialog<ImageSource>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Select Image Source'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, ImageSource.camera),
+                  child: const Text('Camera'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, ImageSource.gallery),
+                  child: const Text('Gallery'),
+                ),
+              ],
+            ),
+          );
 
-Future<void> pickImage(bool isInlet) async {
-  final ImagePicker picker = ImagePicker();
-  // Show dialog to choose camera or gallery
-  final source = await showDialog<ImageSource>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Select Image Source'),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, ImageSource.camera),
-          child: const Text('Camera'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(context, ImageSource.gallery),
-          child: const Text('Gallery'),
-        ),
-      ],
-    ),
-  );
+          if (source == null) return;
 
-  if (source == null) return;
+          try {
+            final XFile? image = await picker.pickImage(
+              source: source,
+              maxWidth: 800, // Resize to reduce size
+              maxHeight: 800,
+              imageQuality: 75, // Compress to balance quality and size
+            );
 
-  try {
-    final XFile? image = await picker.pickImage(
-      source: source,
-      maxWidth: 800, // Resize to reduce size
-      maxHeight: 800,
-      imageQuality: 75, // Compress to balance quality and size
-    );
-
-    if (image != null) {
-      final bytes = await File(image.path).readAsBytes();
-      final base64Image = base64Encode(bytes);
-      setState(() {
-        if (isInlet) {
-          inletImageBase64 = base64Image;
-          errorText = null; // Clear any previous errors
-        } else {
-          outletImageBase64 = base64Image;
-          errorText = null;
+            if (image != null) {
+              final bytes = await File(image.path).readAsBytes();
+              final base64Image = base64Encode(bytes);
+              setState(() {
+                if (isInlet) {
+                  inletImageBase64 = base64Image;
+                  errorText = null; // Clear any previous errors
+                } else {
+                  outletImageBase64 = base64Image;
+                  errorText = null;
+                }
+                // Log size for debugging
+                print('Base64 ${isInlet ? "inlet" : "outlet"} image size: ${base64Image.length} bytes');
+              });
+            }
+          } catch (e) {
+            setState(() {
+              errorText = 'Error picking image: $e';
+            });
+            print('Image pick error: $e');
+          }
         }
-        // Log size for debugging
-        print('Base64 ${isInlet ? "inlet" : "outlet"} image size: ${base64Image.length} bytes');
-      });
-    }
-  } catch (e) {
-    setState(() {
-      errorText = 'Error picking image: $e';
-    });
-    print('Image pick error: $e');
-  }
-}
 
         return StatefulBuilder(
           builder: (dialogContext, setState) {
@@ -228,26 +238,26 @@ Future<void> pickImage(bool isInlet) async {
                         keyboardType: TextInputType.number,
                         onChanged: (val) => setState(() => selectedOutletValue = val),
                       ),
-                     Row(
-  children: [
-    ElevatedButton(
-      onPressed: () => pickImage(true),
-      child: Text(inletImageBase64 == null ? 'Add Inlet Image' : 'Change Inlet Image'),
-    ),
-    if (inletImageBase64 != null)
-      const Icon(Icons.check, color: Colors.green),
-  ],
-),
-Row(
-  children: [
-    ElevatedButton(
-      onPressed: () => pickImage(false),
-      child: Text(outletImageBase64 == null ? 'Add Outlet Image' : 'Change Outlet Image'),
-    ),
-    if (outletImageBase64 != null)
-      const Icon(Icons.check, color: Colors.green),
-  ],
-),
+                      Row(
+                        children: [
+                          ElevatedButton(
+                            onPressed: () => pickImage(true),
+                            child: Text(inletImageBase64 == null ? 'Add Inlet Image' : 'Change Inlet Image'),
+                          ),
+                          if (inletImageBase64 != null)
+                            const Icon(Icons.check, color: Colors.green),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          ElevatedButton(
+                            onPressed: () => pickImage(false),
+                            child: Text(outletImageBase64 == null ? 'Add Outlet Image' : 'Change Outlet Image'),
+                          ),
+                          if (outletImageBase64 != null)
+                            const Icon(Icons.check, color: Colors.green),
+                        ],
+                      ),
                       DropdownButtonFormField<int>(
                         value: selectedFlowShift,
                         items: const [
@@ -256,6 +266,31 @@ Row(
                           DropdownMenuItem(value: 3, child: Text('3')),
                         ],
                         onChanged: (val) => setState(() => selectedFlowShift = val ?? 1),
+                        decoration: const InputDecoration(labelText: 'Shift'),
+                      ),
+                    ] else if (_selectedTab == 3) ...[
+                      TextField(
+                        decoration: const InputDecoration(labelText: 'Parameter ID (int)'),
+                        keyboardType: TextInputType.number,
+                        onChanged: (val) {
+                          setState(() {
+                            selectedParameterId = int.tryParse(val) ?? 0;
+                          });
+                        },
+                      ),
+                      TextField(
+                        decoration: const InputDecoration(labelText: 'Value'),
+                        keyboardType: TextInputType.number,
+                        onChanged: (val) => setState(() => selectedParameterValue = val),
+                      ),
+                      DropdownButtonFormField<int>(
+                        value: selectedParameterShift,
+                        items: const [
+                          DropdownMenuItem(value: 1, child: Text('1')),
+                          DropdownMenuItem(value: 2, child: Text('2')),
+                          DropdownMenuItem(value: 3, child: Text('3')),
+                        ],
+                        onChanged: (val) => setState(() => selectedParameterShift = val ?? 1),
                         decoration: const InputDecoration(labelText: 'Shift'),
                       ),
                     ],
@@ -329,6 +364,22 @@ Row(
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Flow log added')),
                       );
+                    } else if (_selectedTab == 3) {
+                      if (selectedParameterId <= 0 || selectedParameterValue.isEmpty) {
+                        setState(() => errorText = 'Please fill all required fields.');
+                        return;
+                      }
+                      final entry = {
+                        'plant_id': plantId,
+                        'plant_flow_parameter_id': selectedParameterId,
+                        'value': selectedParameterValue,
+                        'shift': selectedParameterShift,
+                      };
+                      _addParameterLogEntry(entry);
+                      Navigator.pop(dialogContext);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Parameter log added')),
+                      );
                     }
                   },
                   child: const Text('Add'),
@@ -356,6 +407,11 @@ Row(
     setState(() {});
   }
 
+  void _addParameterLogEntry(Map<String, dynamic> entry) {
+    _parameterlogBloc.add(AddParameterlog(entry));
+    setState(() {});
+  }
+
   String _getDialogTitle() {
     switch (_selectedTab) {
       case 0:
@@ -364,6 +420,8 @@ Row(
         return 'Add Chemical Log';
       case 2:
         return 'Add Flow Log';
+      case 3:
+        return 'Add Parameter Log';
       default:
         return 'Add Log';
     }
@@ -490,7 +548,7 @@ Row(
           return const Center(child: Text('No data available'));
         },
       );
-    } else {
+    } else if (_selectedTab == 2) {
       return BlocBuilder<FlowlogBloc, FlowlogState>(
         bloc: _flowlogBloc,
         builder: (context, state) {
@@ -551,6 +609,65 @@ Row(
           return const Center(child: Text('No data available'));
         },
       );
+    } else {
+      return BlocBuilder<ParameterlogBloc, ParameterlogState>(
+        bloc: _parameterlogBloc,
+        builder: (context, state) {
+          if (state is ParameterlogLoading) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (state is ParameterlogLoaded) {
+            final parameterLogs = (state.parameterlogData['logs'] as List<dynamic>? ?? [])
+                .map((log) => _mapBackendParameterLogToEntry(log))
+                .toList();
+            if (parameterLogs.isEmpty) {
+              return const Center(child: Text('No parameter logs available'));
+            }
+            return ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: parameterLogs.length,
+              itemBuilder: (context, index) {
+                final entry = parameterLogs[index];
+                return Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  color: AppColors.lightblue,
+                  child: ExpansionTile(
+                    title: Text(
+                      entry['name'] ?? 'Unknown',
+                      style: const TextStyle(color: AppColors.cream),
+                    ),
+                    iconColor: AppColors.yellowochre,
+                    collapsedIconColor: AppColors.yellowochre,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: _buildDetailWidgets(entry),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          } else if (state is ParameterlogError) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Error: ${state.message}'),
+                  ElevatedButton(
+                    onPressed: () => _parameterlogBloc.add(FetchParameterlog()),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            );
+          }
+          return const Center(child: Text('No data available'));
+        },
+      );
     }
   }
 
@@ -587,6 +704,15 @@ Row(
       'date': _formatDate(log['start_date']),
       'inlet_image': log['inlet_image']?.toString() ?? 'N/A',
       'outlet_image': log['outlet_image']?.toString() ?? 'N/A',
+    };
+  }
+
+  Map<String, String> _mapBackendParameterLogToEntry(dynamic log) {
+    return {
+      'name': 'Parameter Log ${log['flow_parameter_log_id'] ?? ''}',
+      'value': log['value']?.toString() ?? 'N/A',
+      'shift': (log['shift'] != null) ? log['shift'].toString() : 'N/A',
+      'date': _formatDate(log['created_at']),
     };
   }
 
@@ -640,7 +766,7 @@ Row(
         const SizedBox(height: 8),
         Text('Date: ${entry['date']}', style: const TextStyle(color: AppColors.cream)),
       ];
-    } else {
+    } else if (_selectedTab == 2) {
       return [
         Text('Inlet: ${entry['inlet']}',
             style: const TextStyle(color: AppColors.cream)),
@@ -688,6 +814,14 @@ Row(
         Text('Date: ${entry['date']}',
             style: const TextStyle(color: AppColors.cream)),
       ];
+    } else {
+      return [
+        Text('Value: ${entry['value']}', style: const TextStyle(color: AppColors.cream)),
+        const SizedBox(height: 8),
+        Text('Shift: ${entry['shift']}', style: const TextStyle(color: AppColors.cream)),
+        const SizedBox(height: 8),
+        Text('Date: ${entry['date']}', style: const TextStyle(color: AppColors.cream)),
+      ];
     }
   }
 
@@ -705,6 +839,7 @@ Row(
               _buildTabButton(0, 'Equipment'),
               _buildTabButton(1, 'Chemical'),
               _buildTabButton(2, 'Flow'),
+              _buildTabButton(3, 'Parameter'),
             ],
           ),
           const Divider(height: 1),
@@ -739,6 +874,8 @@ Row(
             _chemicallogBloc.add(FetchChemicallog());
           } else if (index == 2) {
             _flowlogBloc.add(FetchFlowlog());
+          } else if (index == 3) {
+            _parameterlogBloc.add(FetchParameterlog());
           }
         });
       },
@@ -770,6 +907,9 @@ Row(
     }
     if (widget.flowlogBloc == null) {
       _flowlogBloc.close();
+    }
+    if (widget.parameterlogBloc == null) {
+      _parameterlogBloc.close();
     }
     super.dispose();
   }
