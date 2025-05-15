@@ -42,10 +42,10 @@ class AppConfig{
   static const String flowlogadd= '$baseUrl/api/v1/logs/create/flow';
   static const String parameterlogadd= '$baseUrl/api/v1/logs/create/flowparameter';
 //editlogs
-  static const String equiplogedit= '$baseUrl/api/v1/logs/edit/equipment';
-  static const String chemicallogedit= '$baseUrl/api/v1/logs/edit/chemical';    
-  static const String flowlogedit= '$baseUrl/api/v1/logs/edit/flow';
-  static const String parameterlogedit= '$baseUrl/api/v1/logs/edit/flowparameter';
+  static const String equiplogedit= '$baseUrl/api/v1/logs/update/equipment';
+  static const String chemicallogedit= '$baseUrl/api/v1/logs/update/chemical';    
+  static const String flowlogedit= '$baseUrl/api/v1/logs/update/flow';
+  static const String parameterlogedit= '$baseUrl/api/v1/logs/update/flowparameter';
 
   static const String plantequip = '$baseUrl/plant-equipment/plant';
   static const String plantequipadd = '$baseUrl/plant-equipment/create';

@@ -91,4 +91,39 @@ class ParameterLogRepository {
       throw Exception('Network error: ${e.message}');
     }
   }
+
+  Future<Map<String, dynamic>> editParameterLog({
+    required int flowParameterLogId,
+    double? value,
+    int? shift,
+  }) async {
+    final token = await _getToken();
+    if (token == null) {
+      throw Exception('No authentication token found');
+    }
+    final Map<String, dynamic> data = {
+      'flow_parameter_log_id': flowParameterLogId,
+    };
+    if (value != null) data['value'] = value;
+    if (shift != null) data['shift'] = shift;
+    try {
+      final response = await dio.put(
+        AppConfig.parameterlogedit,
+        data: data,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+      if (response.statusCode == 200) {
+        return response.data;
+      } else {
+        throw Exception('Failed to edit parameter log: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      throw Exception('Network error: ${e.message}');
+    }
+  }
 }

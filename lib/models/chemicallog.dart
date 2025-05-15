@@ -102,6 +102,45 @@ Future<Map<String, dynamic>> addChemicalLog(Map<String, dynamic> log) async {
   }
 }
 
+  Future<Map<String, dynamic>> editChemicalLog({
+    required int chemicalLogId,
+    double? quantityUsed,
+    double? quantityLeft,
+    bool? sludgeDischarge,
+    int? shift,
+  }) async {
+    final token = await _getToken();
+    if (token == null) {
+      throw Exception('No authentication token found');
+    }
+    final Map<String, dynamic> data = {
+      'chemical_log_id': chemicalLogId,
+    };
+    if (quantityUsed != null) data['quantity_used'] = quantityUsed;
+    if (quantityLeft != null) data['quantity_left'] = quantityLeft;
+    if (sludgeDischarge != null) data['sludge_discharge'] = sludgeDischarge;
+    if (shift != null) data['shift'] = shift;
+    try {
+      final response = await dio.put(
+        AppConfig.chemicallogedit,
+        data: data,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+      if (response.statusCode == 200) {
+        return response.data;
+      } else {
+        throw Exception('Failed to edit chemical log: {response.statusCode}');
+      }
+    } on DioException catch (e) {
+      throw Exception('Network error: {e.message}');
+    }
+  }
+
   int _mapStatusToInt(String status) {
     switch (status) {
       case 'OK':

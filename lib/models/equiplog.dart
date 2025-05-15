@@ -103,6 +103,43 @@ final statusValue = rawStatus is int
     }
   }
 
+  Future<Map<String, dynamic>> editEquipmentLog({
+    required int equipmentLogId,
+    int? equipmentStatus,
+    bool? maintenanceDone,
+    int? shift,
+  }) async {
+    final token = await _getToken();
+    if (token == null) {
+      throw Exception('No authentication token found');
+    }
+    final Map<String, dynamic> data = {
+      'equipment_log_id': equipmentLogId,
+    };
+    if (equipmentStatus != null) data['equipment_status'] = equipmentStatus;
+    if (maintenanceDone != null) data['maintenance_done'] = maintenanceDone;
+    if (shift != null) data['shift'] = shift;
+    try {
+      final response = await dio.put(
+        AppConfig.equiplogedit,
+        data: data,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+      if (response.statusCode == 200) {
+        return response.data;
+      } else {
+        throw Exception('Failed to edit equipment log: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      throw Exception('Network error: ${e.message}');
+    }
+  }
+
   int _mapStatusToInt(String status) {
     switch (status) {
       case 'OK':
