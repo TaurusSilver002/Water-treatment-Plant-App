@@ -10,7 +10,7 @@ abstract class EquipmentEvent extends Equatable {
 class FetchEquipment extends EquipmentEvent {}
 
 class AddEquipmentLog extends EquipmentEvent {
-  final Map<String, String> log;
+  final Map<String, dynamic> log;
 
   const AddEquipmentLog(this.log);
 

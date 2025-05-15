@@ -1,12 +1,12 @@
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:waterplant/config.dart';
+import 'package:watershooters/config.dart';
 
 class EquipmentRepository {
   final Dio dio;
 
   EquipmentRepository({Dio? dio})
-      : dio = dio ?? Dio(); // Remove baseUrl from BaseOptions
+      : dio = dio ?? Dio(); 
 
   Future<String?> _getToken() async {
     final prefs = await SharedPreferences.getInstance();
@@ -55,7 +55,7 @@ class EquipmentRepository {
     }
   }
 
-  Future<Map<String, dynamic>> addEquipmentLog(Map<String, String> log) async {
+  Future<Map<String, dynamic>> addEquipmentLog(Map<String, dynamic> log) async {
     final token = await _getToken();
     if (token == null) {
       throw Exception('No authentication token found');
@@ -65,16 +65,26 @@ class EquipmentRepository {
     if (plantId == null) {
       throw Exception('No plant_id found in shared preferences');
     }
+    // Extract and validate fields
+    final plantEquipmentId = log['plant_equipment_id'];
+    // Accept both 'status' and 'equipment_status' for compatibility
+final rawStatus = log['status'] ?? log['equipment_status'];
+final statusValue = rawStatus is int
+    ? rawStatus
+    : int.tryParse(rawStatus.toString()) ?? _mapStatusToInt(rawStatus.toString());
+    final maintenanceDone = log['maintenance_done'];
+    final remark = log['equipment_remark'];
+    final shift = log['shift'];
     try {
       final response = await dio.post(
-        AppConfig.equiplog,
+        AppConfig.equiplogadd,
         data: {
           'plant_id': plantId,
-          'plant_equipment_id': 0,
-          'equipment_status': _mapStatusToInt(log['status']!),
-          'maintenance_done': log['maintenance'] == 'Done',
-          'equipment_remark': log['name'],
-          'shift': int.parse(log['shift']!),
+          'plant_equipment_id': int.parse(plantEquipmentId.toString()),
+          'equipment_status': statusValue,
+          'maintenance_done': maintenanceDone,
+          'equipment_remark': remark,
+          'shift': int.parse(shift.toString()),
         },
         options: Options(
           headers: {
@@ -83,7 +93,6 @@ class EquipmentRepository {
           },
         ),
       );
-
       if (response.statusCode == 201 || response.statusCode == 200) {
         return response.data;
       } else {

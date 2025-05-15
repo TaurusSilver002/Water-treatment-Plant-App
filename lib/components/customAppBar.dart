@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:waterplant/config.dart';
+import 'package:watershooters/config.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   const CustomAppBar({super.key});

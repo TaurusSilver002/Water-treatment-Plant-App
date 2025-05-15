@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import 'package:waterplant/models/user.dart';
+import 'package:watershooters/models/user.dart';
 import 'user_bloc.dart';
 
 abstract class UserState extends Equatable {

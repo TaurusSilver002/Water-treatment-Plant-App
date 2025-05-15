@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:waterplant/config.dart';
+import 'package:watershooters/config.dart';
 
 
 class PlantType {

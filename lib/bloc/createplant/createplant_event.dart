@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import 'package:waterplant/models/plant_type.dart';
+import 'package:watershooters/models/plant_type.dart';
 
 abstract class PlantCreateEvent extends Equatable {
   const PlantCreateEvent();

@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:waterplant/bloc/chemicallog/chemicallog_bloc.dart';
-import 'package:waterplant/bloc/equipmentlog/equipmentlog_bloc.dart';
-import 'package:waterplant/bloc/flowlog/flowlog_bloc.dart';
-import 'package:waterplant/components/CustomAppBar.dart';
-import 'package:waterplant/components/customdrawer.dart';
-import 'package:waterplant/config.dart';
-import 'package:waterplant/models/chemicallog.dart';
-import 'package:waterplant/models/equiplog.dart';
-import 'package:waterplant/models/flowlog.dart';
-import 'package:waterplant/routes/etproutes/etplog.dart';
+import 'package:watershooters/bloc/chemicallog/chemicallog_bloc.dart';
+import 'package:watershooters/bloc/equipmentlog/equipmentlog_bloc.dart';
+import 'package:watershooters/bloc/flowlog/flowlog_bloc.dart';
+import 'package:watershooters/components/CustomAppBar.dart';
+import 'package:watershooters/components/customdrawer.dart';
+import 'package:watershooters/config.dart';
+import 'package:watershooters/models/chemicallog.dart';
+import 'package:watershooters/models/equiplog.dart';
+import 'package:watershooters/models/flowlog.dart';
+import 'package:watershooters/routes/etproutes/etplog.dart';
 
 class Etpdataentry extends StatefulWidget {
   const Etpdataentry({super.key});

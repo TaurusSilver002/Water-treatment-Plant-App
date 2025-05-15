@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:waterplant/config.dart';
+import 'package:watershooters/config.dart';
 
 class ChemicalLogRepository {
   final Dio dio;
@@ -55,39 +55,52 @@ class ChemicalLogRepository {
     }
   }
 
-  Future<Map<String, dynamic>> addChemicalLog(Map<String, String> log) async {
-    final token = await _getToken();
-    if (token == null) {
-      throw Exception('No authentication token found');
-    }
-
-    try {
-      final response = await dio.post(
-        AppConfig.chemicallog, // Use the full URL directly
-        data: {
-          'chemical_name': log['name'],
-          'chemical_status': _mapStatusToInt(log['status']!),
-          'maintenance_done': log['maintenance'] == 'Done',
-          'shift': int.parse(log['shift']!),
-          'start_date': DateTime.parse(log['date']!).toUtc().toIso8601String(),
-        },
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Content-Type': 'application/json',
-          },
-        ),
-      );
-
-      if (response.statusCode == 201 || response.statusCode == 200) {
-        return response.data;
-      } else {
-        throw Exception('Failed to add equipment log: ${response.statusCode}');
-      }
-    } on DioException catch (e) {
-      throw Exception('Network error: ${e.message}');
-    }
+Future<Map<String, dynamic>> addChemicalLog(Map<String, dynamic> log) async {
+  final token = await _getToken();
+  if (token == null) {
+    throw Exception('No authentication token found');
   }
+
+  final prefs = await SharedPreferences.getInstance();
+  final plantId = prefs.getInt('plant_id');
+  if (plantId == null) {
+    throw Exception('No plant_id found in shared preferences');
+  }
+
+  final chemicalId = log['plant_chemical_id'];
+  final quantityUsed = log['quantity_used'];
+  final quantityLeft = log['quantity_left'];
+  final sludgeDischarge = log['sludge_discharge'];
+  final shift = log['shift'];
+
+  try {
+    final response = await dio.post(
+      AppConfig.chemicallogadd,
+      data: {
+        'plant_id': plantId,
+        'plant_chemical_id': int.parse(chemicalId.toString()),
+        'quantity_used': double.parse(quantityUsed.toString()),
+        'quantity_left': double.parse(quantityLeft.toString()),
+        'sludge_discharge': sludgeDischarge,
+        'shift': int.parse(shift.toString()),
+      },
+      options: Options(
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ),
+    );
+
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      return response.data;
+    } else {
+      throw Exception('Failed to add chemical log: ${response.statusCode}');
+    }
+  } on DioException catch (e) {
+    throw Exception('Network error: ${e.message}');
+  }
+}
 
   int _mapStatusToInt(String status) {
     switch (status) {

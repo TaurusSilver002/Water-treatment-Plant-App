@@ -1,9 +1,9 @@
 import 'package:dio/dio.dart';
 import 'package:get_it/get_it.dart';
-import 'package:waterplant/bloc/user/user_bloc.dart';
-import 'package:waterplant/config.dart';
-import 'package:waterplant/models/auth.dart';
-import 'package:waterplant/models/plant_type.dart';
+import 'package:watershooters/bloc/user/user_bloc.dart';
+import 'package:watershooters/config.dart';
+import 'package:watershooters/models/auth.dart';
+import 'package:watershooters/models/plant_type.dart';
 
 final GetIt locator = GetIt.instance;
 

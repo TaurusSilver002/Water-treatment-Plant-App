@@ -1,8 +1,8 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
-import 'package:waterplant/models/user.dart';
-import 'package:waterplant/config.dart';
+import 'package:watershooters/models/user.dart';
+import 'package:watershooters/config.dart';
 import 'user_event.dart';
 import 'user_state.dart';
 

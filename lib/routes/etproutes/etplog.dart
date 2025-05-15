@@ -1,15 +1,19 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:waterplant/bloc/equipmentlog/equipmentlog_bloc.dart';
-import 'package:waterplant/bloc/chemicallog/chemicallog_bloc.dart';
-import 'package:waterplant/bloc/flowlog/flowlog_bloc.dart';
-import 'package:waterplant/components/customAppBar.dart';
-import 'package:waterplant/components/customdrawer.dart';
-import 'package:waterplant/config.dart';
-import 'package:waterplant/models/equiplog.dart';
-import 'package:waterplant/models/chemicallog.dart';
-import 'package:waterplant/models/flowlog.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:watershooters/bloc/equipmentlog/equipmentlog_bloc.dart';
+import 'package:watershooters/bloc/chemicallog/chemicallog_bloc.dart';
+import 'package:watershooters/bloc/flowlog/flowlog_bloc.dart';
+import 'package:watershooters/components/customAppBar.dart';
+import 'package:watershooters/components/customdrawer.dart';
+import 'package:watershooters/config.dart';
+import 'package:watershooters/models/equiplog.dart';
+import 'package:watershooters/models/chemicallog.dart';
+import 'package:watershooters/models/flowlog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class EtpLog extends StatefulWidget {
@@ -57,16 +61,79 @@ class _EtpLogState extends State<EtpLog> {
     showDialog(
       context: context,
       builder: (dialogContext) {
-        String selectedName = 'A';
-        String selectedStatus = 'OK';
-        String selectedMaintenance = 'Done';
-        String selectedShift = '1';
-        String selectedQuantity = '';
-        String selectedSludge = 'Yes';
-        String selectedInlet = '';
-        String selectedOutlet = '';
-        String selectedInletImage = '';
-        String selectedOutletImage = '';
+        // State for dialog fields
+        int selectedEquipmentId = 0;
+        int selectedStatus = 0; // 0=OK, 1=Warning, 2=Critical
+        bool selectedMaintenanceDone = true;
+        String selectedRemark = '';
+        int selectedShift = 1;
+        // --- Chemical log fields ---
+        int selectedChemicalId = 0;
+        String selectedQuantityUsed = '';
+        String selectedQuantityLeft = '';
+        bool selectedSludgeDischarge = false;
+        int selectedChemicalShift = 1;
+        // --- Flow log fields ---
+        String selectedInletValue = '';
+        String selectedOutletValue = '';
+        String? inletImageBase64;
+        String? outletImageBase64;
+        int selectedFlowShift = 1;
+        String? errorText;
+
+
+Future<void> pickImage(bool isInlet) async {
+  final ImagePicker picker = ImagePicker();
+  // Show dialog to choose camera or gallery
+  final source = await showDialog<ImageSource>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Select Image Source'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, ImageSource.camera),
+          child: const Text('Camera'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, ImageSource.gallery),
+          child: const Text('Gallery'),
+        ),
+      ],
+    ),
+  );
+
+  if (source == null) return;
+
+  try {
+    final XFile? image = await picker.pickImage(
+      source: source,
+      maxWidth: 800, // Resize to reduce size
+      maxHeight: 800,
+      imageQuality: 75, // Compress to balance quality and size
+    );
+
+    if (image != null) {
+      final bytes = await File(image.path).readAsBytes();
+      final base64Image = base64Encode(bytes);
+      setState(() {
+        if (isInlet) {
+          inletImageBase64 = base64Image;
+          errorText = null; // Clear any previous errors
+        } else {
+          outletImageBase64 = base64Image;
+          errorText = null;
+        }
+        // Log size for debugging
+        print('Base64 ${isInlet ? "inlet" : "outlet"} image size: ${base64Image.length} bytes');
+      });
+    }
+  } catch (e) {
+    setState(() {
+      errorText = 'Error picking image: $e';
+    });
+    print('Image pick error: $e');
+  }
+}
 
         return StatefulBuilder(
           builder: (dialogContext, setState) {
@@ -75,19 +142,128 @@ class _EtpLogState extends State<EtpLog> {
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  children: _getInputFields(
-                    setState,
-                    selectedName,
-                    selectedStatus,
-                    selectedMaintenance,
-                    selectedShift,
-                    selectedQuantity,
-                    selectedSludge,
-                    selectedInlet,
-                    selectedOutlet,
-                    selectedInletImage,
-                    selectedOutletImage,
-                  ),
+                  children: [
+                    if (_selectedTab == 0) ...[
+                      TextField(
+                        decoration: const InputDecoration(labelText: 'Equipment ID (int)'),
+                        keyboardType: TextInputType.number,
+                        onChanged: (val) {
+                          setState(() {
+                            selectedEquipmentId = int.tryParse(val) ?? 0;
+                          });
+                        },
+                      ),
+                      DropdownButtonFormField<int>(
+                        value: selectedStatus,
+                        items: const [
+                          DropdownMenuItem(value: 0, child: Text('OK')),
+                          DropdownMenuItem(value: 1, child: Text('Warning')),
+                          DropdownMenuItem(value: 2, child: Text('Critical')),
+                        ],
+                        onChanged: (val) => setState(() => selectedStatus = val ?? 0),
+                        decoration: const InputDecoration(labelText: 'Equipment Status'),
+                      ),
+                      SwitchListTile(
+                        title: const Text('Maintenance Done'),
+                        value: selectedMaintenanceDone,
+                        onChanged: (val) => setState(() => selectedMaintenanceDone = val),
+                      ),
+                      TextField(
+                        decoration: const InputDecoration(labelText: 'Equipment Remark'),
+                        onChanged: (val) => setState(() => selectedRemark = val),
+                      ),
+                      DropdownButtonFormField<int>(
+                        value: selectedShift,
+                        items: const [
+                          DropdownMenuItem(value: 1, child: Text('1')),
+                          DropdownMenuItem(value: 2, child: Text('2')),
+                          DropdownMenuItem(value: 3, child: Text('3')),
+                        ],
+                        onChanged: (val) => setState(() => selectedShift = val ?? 1),
+                        decoration: const InputDecoration(labelText: 'Shift'),
+                      ),
+                    ] else if (_selectedTab == 1) ...[
+                      TextField(
+                        decoration: const InputDecoration(labelText: 'Chemical ID (int)'),
+                        keyboardType: TextInputType.number,
+                        onChanged: (val) {
+                          setState(() {
+                            selectedChemicalId = int.tryParse(val) ?? 0;
+                          });
+                        },
+                      ),
+                      TextField(
+                        decoration: const InputDecoration(labelText: 'Quantity Used'),
+                        keyboardType: TextInputType.number,
+                        onChanged: (val) => setState(() => selectedQuantityUsed = val),
+                      ),
+                      TextField(
+                        decoration: const InputDecoration(labelText: 'Quantity Left'),
+                        keyboardType: TextInputType.number,
+                        onChanged: (val) => setState(() => selectedQuantityLeft = val),
+                      ),
+                      SwitchListTile(
+                        title: const Text('Sludge Discharge'),
+                        value: selectedSludgeDischarge,
+                        onChanged: (val) => setState(() => selectedSludgeDischarge = val),
+                      ),
+                      DropdownButtonFormField<int>(
+                        value: selectedChemicalShift,
+                        items: const [
+                          DropdownMenuItem(value: 1, child: Text('1')),
+                          DropdownMenuItem(value: 2, child: Text('2')),
+                          DropdownMenuItem(value: 3, child: Text('3')),
+                        ],
+                        onChanged: (val) => setState(() => selectedChemicalShift = val ?? 1),
+                        decoration: const InputDecoration(labelText: 'Shift'),
+                      ),
+                    ] else if (_selectedTab == 2) ...[
+                      TextField(
+                        decoration: const InputDecoration(labelText: 'Inlet Value'),
+                        keyboardType: TextInputType.number,
+                        onChanged: (val) => setState(() => selectedInletValue = val),
+                      ),
+                      TextField(
+                        decoration: const InputDecoration(labelText: 'Outlet Value'),
+                        keyboardType: TextInputType.number,
+                        onChanged: (val) => setState(() => selectedOutletValue = val),
+                      ),
+                     Row(
+  children: [
+    ElevatedButton(
+      onPressed: () => pickImage(true),
+      child: Text(inletImageBase64 == null ? 'Add Inlet Image' : 'Change Inlet Image'),
+    ),
+    if (inletImageBase64 != null)
+      const Icon(Icons.check, color: Colors.green),
+  ],
+),
+Row(
+  children: [
+    ElevatedButton(
+      onPressed: () => pickImage(false),
+      child: Text(outletImageBase64 == null ? 'Add Outlet Image' : 'Change Outlet Image'),
+    ),
+    if (outletImageBase64 != null)
+      const Icon(Icons.check, color: Colors.green),
+  ],
+),
+                      DropdownButtonFormField<int>(
+                        value: selectedFlowShift,
+                        items: const [
+                          DropdownMenuItem(value: 1, child: Text('1')),
+                          DropdownMenuItem(value: 2, child: Text('2')),
+                          DropdownMenuItem(value: 3, child: Text('3')),
+                        ],
+                        onChanged: (val) => setState(() => selectedFlowShift = val ?? 1),
+                        decoration: const InputDecoration(labelText: 'Shift'),
+                      ),
+                    ],
+                    if (errorText != null) ...[
+                      const SizedBox(height: 8),
+                      Text(errorText!, style: const TextStyle(color: Colors.red)),
+                    ],
+                  ],
                 ),
               ),
               actions: [
@@ -96,26 +272,62 @@ class _EtpLogState extends State<EtpLog> {
                   child: const Text('Cancel'),
                 ),
                 TextButton(
-                  onPressed: () {
-                    if (selectedName.isNotEmpty) {
-                      _addToSelectedList(
-                        selectedName,
-                        selectedStatus,
-                        selectedMaintenance,
-                        selectedShift,
-                        selectedQuantity,
-                        selectedSludge,
-                        selectedInlet,
-                        selectedOutlet,
-                        selectedInletImage,
-                        selectedOutletImage,
-                      );
+                  onPressed: () async {
+                    final prefs = await SharedPreferences.getInstance();
+                    final plantId = prefs.getInt('plant_id') ?? 0;
+                    if (_selectedTab == 0) {
+                      if (selectedEquipmentId <= 0 || selectedRemark.isEmpty) {
+                        setState(() => errorText = 'Please fill all required fields.');
+                        return;
+                      }
+                      final entry = {
+                        'plant_id': plantId,
+                        'plant_equipment_id': selectedEquipmentId,
+                        'status': selectedStatus,
+                        'maintenance_done': selectedMaintenanceDone,
+                        'equipment_remark': selectedRemark,
+                        'shift': selectedShift,
+                      };
+                      _addEquipmentLogEntry(entry);
                       Navigator.pop(dialogContext);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                              '${_selectedTab == 0 ? 'Equipment' : _selectedTab == 1 ? 'Chemical' : 'Flow'} log added'),
-                        ),
+                        const SnackBar(content: Text('Equipment log added')),
+                      );
+                    } else if (_selectedTab == 1) {
+                      if (selectedChemicalId <= 0 || selectedQuantityUsed.isEmpty || selectedQuantityLeft.isEmpty) {
+                        setState(() => errorText = 'Please fill all required fields.');
+                        return;
+                      }
+                      final entry = {
+                        'plant_id': plantId,
+                        'plant_chemical_id': selectedChemicalId,
+                        'quantity_used': selectedQuantityUsed,
+                        'quantity_left': selectedQuantityLeft,
+                        'sludge_discharge': selectedSludgeDischarge,
+                        'shift': selectedChemicalShift,
+                      };
+                      _addChemicalLogEntry(entry);
+                      Navigator.pop(dialogContext);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Chemical log added')),
+                      );
+                    } else if (_selectedTab == 2) {
+                      if (selectedInletValue.isEmpty || selectedOutletValue.isEmpty) {
+                        setState(() => errorText = 'Please fill all required fields.');
+                        return;
+                      }
+                      final entry = {
+                        'plant_id': plantId,
+                        'inlet_value': selectedInletValue,
+                        'outlet_value': selectedOutletValue,
+                        'inlet_image': inletImageBase64,
+                        'outlet_image': outletImageBase64,
+                        'shift': selectedFlowShift,
+                      };
+                      _addFlowLogEntry(entry);
+                      Navigator.pop(dialogContext);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Flow log added')),
                       );
                     }
                   },
@@ -129,6 +341,21 @@ class _EtpLogState extends State<EtpLog> {
     );
   }
 
+  void _addEquipmentLogEntry(Map<String, dynamic> entry) {
+    _equipmentBloc.add(AddEquipmentLog(entry));
+    setState(() {});
+  }
+
+  void _addChemicalLogEntry(Map<String, dynamic> entry) {
+    _chemicallogBloc.add(AddChemicallog(entry));
+    setState(() {});
+  }
+
+  void _addFlowLogEntry(Map<String, dynamic> entry) {
+    _flowlogBloc.add(AddFlowlog(entry));
+    setState(() {});
+  }
+
   String _getDialogTitle() {
     switch (_selectedTab) {
       case 0:
@@ -140,202 +367,6 @@ class _EtpLogState extends State<EtpLog> {
       default:
         return 'Add Log';
     }
-  }
-
-  List<Widget> _getInputFields(
-    StateSetter setState,
-    String selectedName,
-    String selectedStatus,
-    String selectedMaintenance,
-    String selectedShift,
-    String selectedQuantity,
-    String selectedSludge,
-    String selectedInlet,
-    String selectedOutlet,
-    String selectedInletImage,
-    String selectedOutletImage,
-  ) {
-    if (_selectedTab == 0) {
-      return [
-        DropdownButtonFormField<String>(
-          value: selectedName,
-          items: ['A', 'B', 'C'].map((name) {
-            return DropdownMenuItem(
-              value: name,
-              child: Text(name),
-            );
-          }).toList(),
-          onChanged: (value) => setState(() => selectedName = value!),
-          decoration: const InputDecoration(
-            labelText: 'Equipment Name',
-            iconColor: AppColors.yellowochre,
-          ),
-        ),
-        DropdownButtonFormField<String>(
-          value: selectedStatus,
-          items: ['OK', 'Critical', 'Warning'].map((status) {
-            return DropdownMenuItem(
-              value: status,
-              child: Text(status),
-            );
-          }).toList(),
-          onChanged: (value) => setState(() => selectedStatus = value!),
-          decoration: const InputDecoration(labelText: 'Status'),
-        ),
-        DropdownButtonFormField<String>(
-          value: selectedMaintenance,
-          items: ['Done', 'Not Done'].map((maintenance) {
-            return DropdownMenuItem(
-              value: maintenance,
-              child: Text(maintenance),
-            );
-          }).toList(),
-          onChanged: (value) => setState(() => selectedMaintenance = value!),
-          decoration: const InputDecoration(labelText: 'Maintenance'),
-        ),
-        DropdownButtonFormField<String>(
-          value: selectedShift,
-          items: ['1', '2', '3'].map((shift) {
-            return DropdownMenuItem(
-              value: shift,
-              child: Text(shift),
-            );
-          }).toList(),
-          onChanged: (value) => setState(() => selectedShift = value!),
-          decoration: const InputDecoration(labelText: 'Shift'),
-        ),
-      ];
-    } else if (_selectedTab == 1) {
-      return [
-        DropdownButtonFormField<String>(
-          value: selectedName,
-          items: ['A', 'B', 'C'].map((name) {
-            return DropdownMenuItem(
-              value: name,
-              child: Text(name),
-            );
-          }).toList(),
-          onChanged: (value) => setState(() => selectedName = value!),
-          decoration: const InputDecoration(labelText: 'Chemical Name'),
-        ),
-        TextField(
-          onChanged: (value) => setState(() => selectedQuantity = value),
-          decoration: const InputDecoration(labelText: 'Quantity'),
-          keyboardType: TextInputType.number,
-        ),
-        DropdownButtonFormField<String>(
-          value: selectedSludge,
-          items: ['Yes', 'No'].map((sludge) {
-            return DropdownMenuItem(
-              value: sludge,
-              child: Text(sludge),
-            );
-          }).toList(),
-          onChanged: (value) => setState(() => selectedSludge = value!),
-          decoration: const InputDecoration(labelText: 'Sludge Discharge'),
-        ),
-        DropdownButtonFormField<String>(
-          value: selectedShift,
-          items: ['1', '2', '3'].map((shift) {
-            return DropdownMenuItem(
-              value: shift,
-              child: Text(shift),
-            );
-          }).toList(),
-          onChanged: (value) => setState(() => selectedShift = value!),
-          decoration: const InputDecoration(labelText: 'Shift'),
-        ),
-      ];
-    } else {
-      return [
-        DropdownButtonFormField<String>(
-          value: selectedName,
-          items: ['A', 'B', 'C'].map((name) {
-            return DropdownMenuItem(
-              value: name,
-              child: Text(name),
-            );
-          }).toList(),
-          onChanged: (value) => setState(() => selectedName = value!),
-          decoration: const InputDecoration(labelText: 'Flow Name'),
-        ),
-        TextField(
-          onChanged: (value) => setState(() => selectedInlet = value),
-          decoration: const InputDecoration(labelText: 'Inlet Value'),
-          keyboardType: TextInputType.number,
-        ),
-        TextField(
-          onChanged: (value) => setState(() => selectedOutlet = value),
-          decoration: const InputDecoration(labelText: 'Outlet Value'),
-          keyboardType: TextInputType.number,
-        ),
-        TextField(
-          onChanged: (value) => setState(() => selectedInletImage = value),
-          decoration: const InputDecoration(labelText: 'Inlet Image URL'),
-          keyboardType: TextInputType.url,
-        ),
-        TextField(
-          onChanged: (value) => setState(() => selectedOutletImage = value),
-          decoration: const InputDecoration(labelText: 'Outlet Image URL'),
-          keyboardType: TextInputType.url,
-        ),
-        DropdownButtonFormField<String>(
-          value: selectedShift,
-          items: ['1', '2', '3'].map((shift) {
-            return DropdownMenuItem(
-              value: shift,
-              child: Text(shift),
-            );
-          }).toList(),
-          onChanged: (value) => setState(() => selectedShift = value!),
-          decoration: const InputDecoration(labelText: 'Shift'),
-        ),
-      ];
-    }
-  }
-
-  void _addToSelectedList(
-    String name,
-    String status,
-    String maintenance,
-    String shift,
-    String quantity,
-    String sludge,
-    String inlet,
-    String outlet,
-    String inletImage,
-    String outletImage,
-  ) {
-    final entry = {
-      'name': name,
-      'date': DateTime.now().toString().substring(0, 16),
-    };
-
-    if (_selectedTab == 0) {
-      entry.addAll({
-        'status': status,
-        'maintenance': maintenance,
-        'shift': shift,
-      });
-      _equipmentBloc.add(AddEquipmentLog(entry));
-    } else if (_selectedTab == 1) {
-      entry.addAll({
-        'quantity': quantity,
-        'sludge': sludge,
-        'shift': shift,
-      });
-      _chemicallogBloc.add(AddChemicallog(entry));
-    } else if (_selectedTab == 2) {
-      entry.addAll({
-        'inlet_value': inlet,
-        'outlet_value': outlet,
-        'shift': shift,
-        'inlet_image': inletImage,
-        'outlet_image': outletImage,
-      });
-      _flowlogBloc.add(AddFlowlog(entry));
-    }
-    setState(() {});
   }
 
   Widget _buildLogList() {
@@ -535,11 +566,12 @@ class _EtpLogState extends State<EtpLog> {
 
   Map<String, String> _mapBackendChemicalLogToEntry(dynamic log) {
     return {
-      'name': log['chemical_remark'] ?? 'Chemical ${log['chemical_log_id'] ?? ''}',
-      'quantity': log['quantity']?.toString() ?? 'N/A',
-      'sludge': (log['sludge_discharge'] == true) ? 'Yes' : 'No',
+      'name': 'Chemical Log ${log['chemical_log_id'] ?? ''}',
+      'quantity_left': log['quantity_left']?.toString() ?? 'N/A',
+      'quantity_consumed': log['quantity_consumed']?.toString() ?? 'N/A',
+      'sludge_discharge': (log['sludge_discharge'] == true) ? 'true' : 'false',
       'shift': (log['shift'] != null) ? log['shift'].toString() : 'N/A',
-      'date': _formatDate(log['start_date']),
+      'date': _formatDate(log['created_at']),
     };
   }
 
@@ -598,17 +630,15 @@ class _EtpLogState extends State<EtpLog> {
       ];
     } else if (_selectedTab == 1) {
       return [
-        Text('Quantity: ${entry['quantity']}',
-            style: const TextStyle(color: AppColors.cream)),
+        Text('Quantity Left: ${entry['quantity_left']}', style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
-        Text('Sludge: ${entry['sludge']}',
-            style: const TextStyle(color: AppColors.cream)),
+        Text('Quantity Consumed: ${entry['quantity_consumed']}', style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
-        Text('Shift: ${entry['shift']}',
-            style: const TextStyle(color: AppColors.cream)),
+        Text('Sludge Discharge: ${entry['sludge_discharge']}', style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
-        Text('Date: ${entry['date']}',
-            style: const TextStyle(color: AppColors.cream)),
+        Text('Shift: ${entry['shift']}', style: const TextStyle(color: AppColors.cream)),
+        const SizedBox(height: 8),
+        Text('Date: ${entry['date']}', style: const TextStyle(color: AppColors.cream)),
       ];
     } else {
       return [

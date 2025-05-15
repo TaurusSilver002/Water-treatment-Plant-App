@@ -3,9 +3,9 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
-import 'package:waterplant/bloc/login/loginBloc.dart';
-import 'package:waterplant/config.dart';
-import 'package:waterplant/models/auth.dart';
+import 'package:watershooters/bloc/login/loginBloc.dart';
+import 'package:watershooters/config.dart';
+import 'package:watershooters/models/auth.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);

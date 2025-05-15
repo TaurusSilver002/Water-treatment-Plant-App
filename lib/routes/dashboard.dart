@@ -2,14 +2,14 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:waterplant/bloc/createplant/createplant_bloc.dart';
-import 'package:waterplant/bloc/plant/plant_bloc.dart';
-import 'package:waterplant/components/customAppBar.dart';
-import 'package:waterplant/components/customdrawer.dart';
-import 'package:waterplant/config.dart';
-import 'package:waterplant/bloc/type/type_bloc.dart';
-import 'package:waterplant/models/plant_type.dart';
-import 'package:waterplant/routes/etp.dart';
+import 'package:watershooters/bloc/createplant/createplant_bloc.dart';
+import 'package:watershooters/bloc/plant/plant_bloc.dart';
+import 'package:watershooters/components/customAppBar.dart';
+import 'package:watershooters/components/customdrawer.dart';
+import 'package:watershooters/config.dart';
+import 'package:watershooters/bloc/type/type_bloc.dart';
+import 'package:watershooters/models/plant_type.dart';
+import 'package:watershooters/routes/etp.dart';
 
 class Dashboard extends StatefulWidget {
   const Dashboard({super.key});

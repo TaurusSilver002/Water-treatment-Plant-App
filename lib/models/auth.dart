@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
-import 'package:waterplant/config.dart';
+import 'package:watershooters/config.dart';
 
 class AuthRepo {
   final Dio _dio;

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:intl/intl.dart';
-import 'package:waterplant/bloc/register/registrationBloc.dart';
-import 'package:waterplant/config.dart';
+import 'package:watershooters/bloc/register/registrationBloc.dart';
+import 'package:watershooters/config.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:waterplant/models/auth.dart';
+import 'package:watershooters/models/auth.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({Key? key}) : super(key: key);

@@ -1,8 +1,8 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:dio/dio.dart';
-import 'package:waterplant/config.dart';
-import 'package:waterplant/models/plant_type.dart'; // Contains PlantRepo
+import 'package:watershooters/config.dart';
+import 'package:watershooters/models/plant_type.dart'; // Contains PlantRepo
 
 part 'plant_event.dart';
 part 'plant_state.dart';

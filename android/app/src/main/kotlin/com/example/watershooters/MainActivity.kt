@@ -1,4 +1,4 @@
-package com.example.waterplant
+package com.example.watershooters
 
 import io.flutter.embedding.android.FlutterActivity
 

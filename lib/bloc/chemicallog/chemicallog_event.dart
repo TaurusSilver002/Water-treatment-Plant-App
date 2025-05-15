@@ -11,7 +11,7 @@ abstract class ChemicallogEvent extends Equatable {
 class FetchChemicallog extends ChemicallogEvent {}
 
 class AddChemicallog extends ChemicallogEvent {
-  final Map<String, String> log;
+  final Map<String, dynamic> log;
 
   const AddChemicallog(this.log);
 

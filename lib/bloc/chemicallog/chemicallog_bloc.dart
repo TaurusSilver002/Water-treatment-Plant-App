@@ -1,6 +1,6 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:waterplant/models/chemicallog.dart';
+import 'package:watershooters/models/chemicallog.dart';
 
 part 'chemicallog_event.dart';
 part 'chemicallog_state.dart';
@@ -28,7 +28,10 @@ class ChemicallogBloc extends Bloc<ChemicallogEvent, ChemicallogState> {
       AddChemicallog event, Emitter<ChemicallogState> emit) async {
     try {
       final currentState = state;
-      final newLog = await repository.addChemicalLog(event.log);
+      // Convert Map<String, dynamic> to Map<String, String>
+      final Map<String, String> convertedLog = event.log.map((key, value) => 
+          MapEntry(key, value.toString()));
+      final newLog = await repository.addChemicalLog(convertedLog);
       if (currentState is ChemicallogLoaded) {
         final updatedLogs = List<dynamic>.from(currentState.chemicallogData['logs'] ?? [])
           ..add(newLog);

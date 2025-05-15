@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:waterplant/bloc/user/user_bloc.dart';
-import 'package:waterplant/bloc/user/user_event.dart';
-import 'package:waterplant/bloc/user/user_state.dart';
-import 'package:waterplant/components/customAppBar.dart';
-import 'package:waterplant/components/customdrawer.dart';
-import 'package:waterplant/config.dart';
-import 'package:waterplant/services/locater.dart';
+import 'package:watershooters/bloc/user/user_bloc.dart';
+import 'package:watershooters/bloc/user/user_event.dart';
+import 'package:watershooters/bloc/user/user_state.dart';
+import 'package:watershooters/components/customAppBar.dart';
+import 'package:watershooters/components/customdrawer.dart';
+import 'package:watershooters/config.dart';
+import 'package:watershooters/services/locater.dart';
 
 class Profile extends StatelessWidget {
   const Profile({super.key});

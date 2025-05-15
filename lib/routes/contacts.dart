@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:waterplant/components/CustomAppBar.dart';
-import 'package:waterplant/components/customdrawer.dart';
-import 'package:waterplant/config.dart';
+import 'package:watershooters/components/CustomAppBar.dart';
+import 'package:watershooters/components/customdrawer.dart';
+import 'package:watershooters/config.dart';
 
 class TeamPage extends StatelessWidget {
   const TeamPage({super.key});

@@ -1,6 +1,6 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:waterplant/models/equiplog.dart';
+import 'package:watershooters/models/equiplog.dart';
 
 part 'equipmentlog_event.dart';
 part 'equipmentlog_state.dart';
@@ -27,17 +27,9 @@ class EquipmentBloc extends Bloc<EquipmentEvent, EquipmentState> {
   Future<void> _onAddEquipmentLog(
       AddEquipmentLog event, Emitter<EquipmentState> emit) async {
     try {
-      final currentState = state;
-      final newLog = await repository.addEquipmentLog(event.log);
-      if (currentState is EquipmentLoaded) {
-        final updatedLogs = List<dynamic>.from(currentState.equipmentData['logs'] ?? [])
-          ..add(newLog);
-        emit(EquipmentLoaded({
-          'logs': updatedLogs,
-        }));
-      } else {
-        emit(EquipmentLoaded({'logs': [newLog]}));
-      }
+      await repository.addEquipmentLog(event.log);
+      // After successful add, reload from backend
+      add(FetchEquipment());
     } catch (e) {
       emit(EquipmentError('Failed to add equipment log: $e'));
     }

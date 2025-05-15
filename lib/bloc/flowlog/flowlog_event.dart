@@ -10,7 +10,7 @@ abstract class FlowlogEvent extends Equatable {
 class FetchFlowlog extends FlowlogEvent {}
 
 class AddFlowlog extends FlowlogEvent {
-  final Map<String, String> log;
+  final Map<String, dynamic> log;
 
   const AddFlowlog(this.log);
 

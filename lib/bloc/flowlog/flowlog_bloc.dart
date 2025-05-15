@@ -1,6 +1,6 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:waterplant/models/flowlog.dart';
+import 'package:watershooters/models/flowlog.dart';
 
 part 'flowlog_event.dart';
 part 'flowlog_state.dart';
@@ -28,6 +28,7 @@ class FlowlogBloc extends Bloc<FlowlogEvent, FlowlogState> {
       AddFlowlog event, Emitter<FlowlogState> emit) async {
     try {
       final currentState = state;
+      // Directly send the dynamic map to the repository (no string conversion)
       final newLog = await repository.addFlowLog(event.log);
       if (currentState is FlowlogLoaded) {
         final updatedLogs = List<dynamic>.from(currentState.flowlogData['logs'] ?? [])

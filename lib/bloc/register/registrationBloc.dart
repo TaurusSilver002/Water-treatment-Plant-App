@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:waterplant/models/auth.dart';
+import 'package:watershooters/models/auth.dart';
 
 part 'registrationEvent.dart';
 part 'registrationState.dart';

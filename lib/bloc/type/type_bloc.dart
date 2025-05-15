@@ -2,8 +2,8 @@ import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
-import 'package:waterplant/config.dart';
-import 'package:waterplant/models/plant_type.dart';
+import 'package:watershooters/config.dart';
+import 'package:watershooters/models/plant_type.dart';
 
 part 'type_event.dart';
 part 'type_state.dart';

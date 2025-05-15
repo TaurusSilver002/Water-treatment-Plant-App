@@ -33,6 +33,10 @@ class AppConfig{
   static const String equiplog= '$baseUrl/api/v1/logs/equipment';
   static const String chemicallog= '$baseUrl/api/v1/logs/chemical';
   static const String flowlog= '$baseUrl/api/v1/logs/flow';
+  static const String equiplogadd= '$baseUrl/api/v1/logs/create/equipment';
+  static const String chemicallogadd= '$baseUrl/api/v1/logs/create/chemical';
+  static const String flowlogadd= '$baseUrl/api/v1/logs/create/flow';
+
 }
 class AppImages {
   static const String logo = 'assets/images/shootlogo.png';

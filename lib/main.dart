@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:waterplant/routes/authentication/login.dart';
-import 'package:waterplant/routes/authentication/signup.dart';
-import 'package:waterplant/routes/authentication/splashscreen.dart';
-import 'package:waterplant/routes/contacts.dart';
-import 'package:waterplant/routes/dashboard.dart';
-import 'package:waterplant/routes/etp.dart';
-import 'package:waterplant/routes/etproutes/etpchemical.dart';
-import 'package:waterplant/routes/etproutes/etpdataentry.dart';
-import 'package:waterplant/routes/etproutes/etpequip.dart';
-import 'package:waterplant/routes/etproutes/etpflow.dart';
-import 'package:waterplant/routes/etproutes/etplog.dart';
-import 'package:waterplant/routes/profile.dart';
-import 'package:waterplant/routes/stp.dart';
-import 'package:waterplant/routes/terms.dart';
-import 'package:waterplant/routes/wtp.dart';
-import 'package:waterplant/services/locater.dart';
+import 'package:watershooters/routes/authentication/login.dart';
+import 'package:watershooters/routes/authentication/signup.dart';
+import 'package:watershooters/routes/authentication/splashscreen.dart';
+import 'package:watershooters/routes/contacts.dart';
+import 'package:watershooters/routes/dashboard.dart';
+import 'package:watershooters/routes/etp.dart';
+import 'package:watershooters/routes/etproutes/etpchemical.dart';
+import 'package:watershooters/routes/etproutes/etpdataentry.dart';
+import 'package:watershooters/routes/etproutes/etpequip.dart';
+import 'package:watershooters/routes/etproutes/etpflow.dart';
+import 'package:watershooters/routes/etproutes/etplog.dart';
+import 'package:watershooters/routes/profile.dart';
+import 'package:watershooters/routes/stp.dart';
+import 'package:watershooters/routes/terms.dart';
+import 'package:watershooters/routes/wtp.dart';
+import 'package:watershooters/services/locater.dart';
 
 void main() {
   setupLocator();

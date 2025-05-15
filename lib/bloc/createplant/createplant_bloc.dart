@@ -1,8 +1,8 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:waterplant/models/plant_type.dart';
-import 'package:waterplant/bloc/createplant/createplant_event.dart';
-import 'package:waterplant/bloc/createplant/createplant_state.dart';
+import 'package:watershooters/models/plant_type.dart';
+import 'package:watershooters/bloc/createplant/createplant_event.dart';
+import 'package:watershooters/bloc/createplant/createplant_state.dart';
 
 abstract class PlantCreateEvent extends Equatable {
   const PlantCreateEvent();
