@@ -13,10 +13,16 @@ class TermsandConditions extends StatelessWidget {
       appBar: CustomAppBar(),
       drawer: CustomDrawer(),
       body: SingleChildScrollView(
-        child: Column(
-          children: [
-            
-          ],
+        child: Center(
+          child: Column(
+            children: [
+              Text('COMING SOON',
+                  style: TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.darkblue)),
+            ],
+          ),
         ),
       ),
     );

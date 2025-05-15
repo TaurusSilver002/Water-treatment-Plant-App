@@ -22,6 +22,7 @@ class AppRoutes {
   static const etplog = '/etplog';
   static const splash = '/splash';
   static const etpparam = '/etpparam';
+  static const graph = '/graph';
 }
 class AppConfig{
   static const String baseUrl = 'https://api.watershooters.in';
@@ -53,6 +54,12 @@ class AppConfig{
   static const String plantchemadd = '$baseUrl/plant-chemical/create';
   static const String plantparam = '$baseUrl/plant-flow-parameter/plant';
   static const String plantparamadd = '$baseUrl/plant-flow-parameter/create';
+  //graph
+  static const String graphDataEquip = '$baseUrl/api/v1/logs/graph-data/equipment';
+  static const String graphDataChemUsed = '$baseUrl/api/v1/logs/graph-data/chemical/used';
+  static const String graphDataChemRem = '$baseUrl/api/v1/logs/graph-data/chemical/remaining';
+  static const String graphDataFlow = '$baseUrl/api/v1/logs/graph-data/flow';
+  static const String graphDataParam = '$baseUrl/api/v1/logs/graph-data/parameters';
 
 }
 class AppImages {

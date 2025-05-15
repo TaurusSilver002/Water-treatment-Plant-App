@@ -62,7 +62,7 @@ class _DashboardState extends State<Dashboard> {
                           fontWeight: FontWeight.bold)),
                   SizedBox(height: 12),
                   Text(
-                      'Lorem ipsum dolor sit amet, consectetur adipiscing elit...',
+                      'Welcome to Water Shooters by DOVER TECHNOLOGIES your ultimate destination fortop-tier troubleshooting solutions tailored for your STP ETP AND WTP needs',
                       style: TextStyle(color: AppColors.cream, fontSize: 12)),
                 ],
               ),

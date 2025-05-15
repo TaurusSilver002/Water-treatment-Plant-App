@@ -69,8 +69,8 @@ class _EtpdataentryState extends State<Etpdataentry> {
       case 'CHEMICALS':
         Navigator.pushNamed(context, AppRoutes.etpchem);
         break;
-      case 'FLOW':
-        Navigator.pushNamed(context, AppRoutes.etpflow);
+      case 'GRAPH':
+        Navigator.pushNamed(context, AppRoutes.graph);
         break;
       case 'EQUIPMENTS':
         Navigator.pushNamed(context, AppRoutes.etpequip);

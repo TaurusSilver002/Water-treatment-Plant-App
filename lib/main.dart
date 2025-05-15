@@ -11,6 +11,7 @@ import 'package:watershooters/routes/etproutes/etpequip.dart';
 import 'package:watershooters/routes/etproutes/etpflow.dart';
 import 'package:watershooters/routes/etproutes/etplog.dart';
 import 'package:watershooters/routes/etproutes/etpparam.dart';
+import 'package:watershooters/routes/graph.dart';
 import 'package:watershooters/routes/profile.dart';
 import 'package:watershooters/routes/stp.dart';
 import 'package:watershooters/routes/terms.dart';
@@ -50,6 +51,7 @@ class MyApp extends StatelessWidget {
       '/etpequip':(context)=>const EtpEquip(),
       '/etpparam':(context)=>const EtpParam(),
       '/etplog':(context)=>const EtpLog(),
+      '/graph':(context)=>const GraphPage(),
       '/terms':(context)=>const TermsandConditions(),
       '/splash':(context) => const SplashScreen(),
       '/login':(context) => const LoginPage(),

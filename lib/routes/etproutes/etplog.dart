@@ -642,7 +642,7 @@ class _EtpLogState extends State<EtpLog> {
                                     context: context,
                                     builder: (context) {
                                       // Defensive parse for preloaded values
-                                      double quantityUsed = double.tryParse(entry['quantity_consumed'] ?? '') ?? 0;
+                                      double quantityUsed = double.tryParse(entry['quantity_used'] ?? '') ?? 0;
                                       double quantityLeft = double.tryParse(entry['quantity_left'] ?? '') ?? 0;
                                       bool sludgeDischarge = (entry['sludge_discharge'] == 'true');
                                       int shiftVal = int.tryParse(entry['shift'] ?? '') ?? 1;
@@ -1064,7 +1064,7 @@ class _EtpLogState extends State<EtpLog> {
     return {
       'name': 'Chemical Log ${log['chemical_log_id'] ?? ''}',
       'quantity_left': log['quantity_left']?.toString() ?? 'N/A',
-      'quantity_consumed': log['quantity_consumed']?.toString() ?? 'N/A',
+      'quantity_used': log['quantity_used']?.toString() ?? 'N/A',
       'sludge_discharge': (log['sludge_discharge'] == true) ? 'true' : 'false',
       'shift': (log['shift'] != null) ? log['shift'].toString() : 'N/A',
       'date': _formatDate(log['created_at']),
@@ -1137,7 +1137,7 @@ class _EtpLogState extends State<EtpLog> {
       return [
         Text('Quantity Left: ${entry['quantity_left']}', style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
-        Text('Quantity Consumed: ${entry['quantity_consumed']}', style: const TextStyle(color: AppColors.cream)),
+        Text('Quantity Used: ${entry['quantity_used']}', style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
         Text('Sludge Discharge: ${entry['sludge_discharge']}', style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),

@@ -159,7 +159,7 @@ class _EtpState extends State<Etp> {
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Text(
-                'SELECT YOUR WORKPLACE - //${widget.plantTypeName.toUpperCase()}',
+                'SELECT YOUR WORKPLACE - ${widget.plantTypeName.toUpperCase()}',
                 style: const TextStyle(
                   color: AppColors.darkblue,
                   fontSize: 20,

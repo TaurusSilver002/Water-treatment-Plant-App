@@ -5,6 +5,7 @@ import 'package:watershooters/components/customdrawer.dart';
 import 'package:watershooters/config.dart';
 import 'package:watershooters/bloc/plantequip_bloc.dart';
 import 'package:watershooters/models/plantequip_repository.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class EtpEquip extends StatefulWidget {
   const EtpEquip({super.key});
@@ -16,12 +17,21 @@ class EtpEquip extends StatefulWidget {
 class _EtpEquipState extends State<EtpEquip> {
   List<Map<String, dynamic>> etpData = [];
   late final PlantequipBloc _plantequipBloc;
+  int? _userRole;
 
   @override
   void initState() {
     super.initState();
     _plantequipBloc = PlantequipBloc(repository: PlantEquipRepository());
     _plantequipBloc.add(FetchPlantequip());
+    _loadUserRole();
+  }
+
+  Future<void> _loadUserRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _userRole = prefs.getInt('role');
+    });
   }
 
   @override
@@ -238,14 +248,16 @@ class _EtpEquipState extends State<EtpEquip> {
             ),
           ),
         ),
-        floatingActionButton: Padding(
-          padding: const EdgeInsets.only(bottom: 16.0),
-          child: FloatingActionButton(
-            backgroundColor: AppColors.darkblue,
-            onPressed: _addNewEquipment,
-            child: const Icon(Icons.add, color: AppColors.yellowochre),
-          ),
-        ),
+        floatingActionButton: (_userRole == 2)
+            ? null
+            : Padding(
+                padding: const EdgeInsets.only(bottom: 16.0),
+                child: FloatingActionButton(
+                  backgroundColor: AppColors.darkblue,
+                  onPressed: _addNewEquipment,
+                  child: const Icon(Icons.add, color: AppColors.yellowochre),
+                ),
+              ),
       ),
     );
   }

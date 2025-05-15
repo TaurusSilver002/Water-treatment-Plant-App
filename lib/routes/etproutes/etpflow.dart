@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:watershooters/components/customAppBar.dart';
 import 'package:watershooters/components/customdrawer.dart';
 import 'package:watershooters/config.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class EtpFlow extends StatefulWidget {
   const EtpFlow({super.key});
@@ -15,6 +16,20 @@ class _EtpFlowState extends State<EtpFlow> {
     {'compound': 'Arsenic', 'amount': '12 mg/l'},
     {'compound': 'Lead', 'amount': '9 mg/l'},
   ];
+  int? _userRole;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserRole();
+  }
+
+  Future<void> _loadUserRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _userRole = prefs.getInt('role');
+    });
+  }
 
   void _addNewChemical() {
     showDialog(
@@ -71,41 +86,42 @@ class _EtpFlowState extends State<EtpFlow> {
       drawer: const CustomDrawer(),
       body: Column(
         children: [
-Expanded(
-  child: ListView.separated(
-    padding: const EdgeInsets.all(12),
-    itemCount: chemicals.length,
-    separatorBuilder: (context, index) => const SizedBox(height: 8),
-    itemBuilder: (context, index) {
-      final chemical = chemicals[index];
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: ListTile(
-          leading: const Icon(Icons.science, color: AppColors.yellowochre), // Moved inside ListTile
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 12,
-          ),
-          tileColor: AppColors.lightblue,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-          title: Text(
-            chemical['compound']!,
-            style: TextStyle(color: AppColors.cream),
-          ),
-          trailing: Text(
-            chemical['amount']!,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              color: AppColors.cream,
+          Expanded(
+            child: ListView.separated(
+              padding: const EdgeInsets.all(12),
+              itemCount: chemicals.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final chemical = chemicals[index];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: ListTile(
+                    leading: const Icon(Icons.science, color: AppColors.yellowochre),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    tileColor: AppColors.lightblue,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    title: Text(
+                      chemical['compound']!,
+                      style: TextStyle(color: AppColors.cream),
+                    ),
+                    trailing: Text(
+                      chemical['amount']!,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.cream,
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
-        ),
-      );
-    },
-  ),
-),          Container(
+          Container(
             height: 80,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             child: Row(
@@ -115,11 +131,12 @@ Expanded(
                   icon: const Icon(Icons.arrow_back, color: AppColors.darkblue),
                   onPressed: () => Navigator.pop(context),
                 ),
-                FloatingActionButton(
-                  backgroundColor: AppColors.darkblue,
-                  onPressed: _addNewChemical,
-                  child: const Icon(Icons.add, color: AppColors.yellowochre),
-                ),
+                if (_userRole != 2)
+                  FloatingActionButton(
+                    backgroundColor: AppColors.darkblue,
+                    onPressed: _addNewChemical,
+                    child: const Icon(Icons.add, color: AppColors.yellowochre),
+                  ),
               ],
             ),
           ),
