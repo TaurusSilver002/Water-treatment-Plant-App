@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:watershooters/config.dart';
 
 class UserModel extends Equatable {
+  final int userId;
   final String firstName;
   final String lastName;
   final String email;
@@ -15,6 +16,7 @@ class UserModel extends Equatable {
   final int roleId;
 
   const UserModel({
+    required this.userId,
     required this.firstName,
     required this.lastName,
     required this.email,
@@ -28,6 +30,7 @@ class UserModel extends Equatable {
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
+      userId: json['user_id'] ?? 0,
       firstName: json['first_name'],
       lastName: json['last_name'],
       email: json['email'],
@@ -54,6 +57,7 @@ class UserModel extends Equatable {
 
   @override
   List<Object?> get props => [
+        userId,
         firstName,
         lastName,
         email,

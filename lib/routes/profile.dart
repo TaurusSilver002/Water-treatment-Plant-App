@@ -57,6 +57,7 @@ class Profile extends StatelessWidget {
               final initials = getInitials(name);
 
               final Map<String, String?> profileData = {
+                'User ID': user.userId.toString(),
                 'Name': name,
                 'Phone Number': user.phoneNo,
                 'Aadhar Number': user.aadharNo,
