@@ -44,8 +44,8 @@ class _SignUpPageState extends State<SignUpPage> {
   ];
 
   final List<Map<String, dynamic>> _roles = [
-    {'id': 3, 'name': 'Client'},
-    {'id': 2, 'name': 'Operator'},
+    {'id': 2, 'name': 'Client'},
+    {'id': 3, 'name': 'Operator'},
   ];
 
   @override
@@ -551,7 +551,7 @@ class _SignUpPageState extends State<SignUpPage> {
     }
 
     // Additional validation for operator role
-    if (_selectedRoleId == 2) { // Operator role
+    if (_selectedRoleId == 3) { // Operator role
       return _operatorIdController.text == 'ABC1234';
     }
 
@@ -559,7 +559,7 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   Widget _buildOperatorIdField() {
-    if (_selectedRoleId == 2) { // Show only for operator role
+    if (_selectedRoleId == 3) { // Show only for operator role
       return Column(
         children: [
           const SizedBox(height: 20),

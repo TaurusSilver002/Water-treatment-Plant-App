@@ -56,13 +56,14 @@ class _EtpState extends State<Etp> {
           bloc: _plantCreateBloc,
           listener: (context, state) {
             if (state is PlantCreateLoading) {
-              // Optionally show loading indicator
-            } else if (state is PlantCreateSuccess) {
-              Navigator.of(dialogContext).pop(); // Close dialog
+              // Optionally show loading indicator            } else if (state is PlantCreateSuccess) {
+              // First refresh the data
+              _plantBloc.add(FetchPlantsByType(widget.plantTypeId));
+              // Then close dialog and show success message
+              Navigator.of(dialogContext).pop();
               ScaffoldMessenger.of(parentContext).showSnackBar(
                 const SnackBar(content: Text("Plant created successfully")),
               );
-              parentContext.read<PlantBloc>().add(FetchPlantsByType(widget.plantTypeId));
             } else if (state is PlantCreateFailure) {
               ScaffoldMessenger.of(parentContext).showSnackBar(
                 SnackBar(content: Text("Error: "+state.error)),

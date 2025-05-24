@@ -131,7 +131,7 @@ class _EtpFlowState extends State<EtpFlow> {
                   icon: const Icon(Icons.arrow_back, color: AppColors.darkblue),
                   onPressed: () => Navigator.pop(context),
                 ),
-                if (_userRole != 2)
+                if (_userRole == 1)
                   FloatingActionButton(
                     backgroundColor: AppColors.darkblue,
                     onPressed: _addNewChemical,

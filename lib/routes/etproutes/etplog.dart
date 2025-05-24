@@ -60,7 +60,7 @@ class _EtpLogState extends State<EtpLog> {
   Future<void> _loadUserRole() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _userRole = prefs.getInt('role');
+      _userRole = prefs.getInt('role_id');
     });
   }
 
@@ -466,105 +466,94 @@ class _EtpLogState extends State<EtpLog> {
                           children: [
                             ..._buildDetailWidgets(entry),
                             const SizedBox(height: 8),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: ElevatedButton.icon(
-                                icon: const Icon(Icons.edit, size: 18),
-                                label: const Text('Edit'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.yellowochre,
-                                  foregroundColor: AppColors.darkblue,
-                                ),
-                                onPressed: () async {
-                                  showDialog(
-                                    context: context,
-                                    builder: (context) {
-                                      // Extract current values from entry
-                                      int statusVal = _statusStringToInt(entry['status'] ?? 'OK');
-                                      bool maintenanceVal = (entry['maintenance'] == 'Done');
-                                      int shiftVal = int.tryParse(entry['shift'] ?? '') ?? 1;
-                                      // Defensive: ensure statusVal and shiftVal are valid
-                                      final statusOptions = [0, 1, 2];
-                                      final shiftOptions = [1, 2, 3];
-                                      if (!statusOptions.contains(statusVal)) statusVal = 0;
-                                      if (!shiftOptions.contains(shiftVal)) shiftVal = 1;
-                                      return StatefulBuilder(
-                                        builder: (context, setState) {
-                                          return AlertDialog(
-                                            title: const Text('Edit Equipment Log'),
-                                            content: Column(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                DropdownButtonFormField<int>(
-                                                  value: statusVal,
-                                                  items: const [
-                                                    DropdownMenuItem(value: 0, child: Text('OK')),
-                                                    DropdownMenuItem(value: 1, child: Text('Warning')),
-                                                    DropdownMenuItem(value: 2, child: Text('Critical')),
-                                                  ],
-                                                  onChanged: (val) => setState(() {
-                                                    statusVal = val ?? 0;
-                                                  }),
-                                                  decoration: const InputDecoration(labelText: 'Equipment Status'),
-                                                ),
-                                                SwitchListTile(
-                                                  title: const Text('Maintenance Done'),
-                                                  value: maintenanceVal,
-                                                  onChanged: (val) => setState(() => maintenanceVal = val),
-                                                ),
-                                                DropdownButtonFormField<int>(
-                                                  value: shiftVal,
-                                                  items: const [
-                                                    DropdownMenuItem(value: 1, child: Text('1')),
-                                                    DropdownMenuItem(value: 2, child: Text('2')),
-                                                    DropdownMenuItem(value: 3, child: Text('3')),
-                                                  ],
-                                                  onChanged: (val) => setState(() => shiftVal = val ?? 1),
-                                                  decoration: const InputDecoration(labelText: 'Shift'),
-                                                ),
+                            _buildEditButton(entry, () async {
+                              showDialog(
+                                context: context,
+                                builder: (context) {
+                                  // Extract current values from entry
+                                  int statusVal = _statusStringToInt(entry['status'] ?? 'OK');
+                                  bool maintenanceVal = (entry['maintenance'] == 'Done');
+                                  int shiftVal = int.tryParse(entry['shift'] ?? '') ?? 1;
+                                  // Defensive: ensure statusVal and shiftVal are valid
+                                  final statusOptions = [0, 1, 2];
+                                  final shiftOptions = [1, 2, 3];
+                                  if (!statusOptions.contains(statusVal)) statusVal = 0;
+                                  if (!shiftOptions.contains(shiftVal)) shiftVal = 1;
+                                  return StatefulBuilder(
+                                    builder: (context, setState) {
+                                      return AlertDialog(
+                                        title: const Text('Edit Equipment Log'),
+                                        content: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            DropdownButtonFormField<int>(
+                                              value: statusVal,
+                                              items: const [
+                                                DropdownMenuItem(value: 0, child: Text('OK')),
+                                                DropdownMenuItem(value: 1, child: Text('Warning')),
+                                                DropdownMenuItem(value: 2, child: Text('Critical')),
                                               ],
+                                              onChanged: (val) => setState(() {
+                                                statusVal = val ?? 0;
+                                              }),
+                                              decoration: const InputDecoration(labelText: 'Equipment Status'),
                                             ),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () => Navigator.pop(context),
-                                                child: const Text('Cancel'),
-                                              ),
-                                              TextButton(
-                                                onPressed: () async {
-                                                  try {
-                                                    // Extract equipment_log_id from entry['name'] or another unique field
-                                                    final equipmentLogId = _extractEquipmentLogId(entry['name'] ?? '');
-                                                    if (equipmentLogId != null) {
-                                                      await EquipmentRepository().editEquipmentLog(
-                                                        equipmentLogId: equipmentLogId,
-                                                        equipmentStatus: statusVal,
-                                                        maintenanceDone: maintenanceVal,
-                                                        shift: shiftVal,
-                                                      );
-                                                      _equipmentBloc.add(FetchEquipment());
-                                                    }
-                                                    Navigator.pop(context);
-                                                    ScaffoldMessenger.of(context).showSnackBar(
-                                                      const SnackBar(content: Text('Equipment log updated')),
-                                                    );
-                                                  } catch (e) {
-                                                    Navigator.pop(context);
-                                                    ScaffoldMessenger.of(context).showSnackBar(
-                                                      SnackBar(content: Text('Failed to update: $e')),
-                                                    );
-                                                  }
-                                                },
-                                                child: const Text('Done'),
-                                              ),
-                                            ],
-                                          );
-                                        },
+                                            SwitchListTile(
+                                              title: const Text('Maintenance Done'),
+                                              value: maintenanceVal,
+                                              onChanged: (val) => setState(() => maintenanceVal = val),
+                                            ),
+                                            DropdownButtonFormField<int>(
+                                              value: shiftVal,
+                                              items: const [
+                                                DropdownMenuItem(value: 1, child: Text('1')),
+                                                DropdownMenuItem(value: 2, child: Text('2')),
+                                                DropdownMenuItem(value: 3, child: Text('3')),
+                                              ],
+                                              onChanged: (val) => setState(() => shiftVal = val ?? 1),
+                                              decoration: const InputDecoration(labelText: 'Shift'),
+                                            ),
+                                          ],
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(context),
+                                            child: const Text('Cancel'),
+                                          ),
+                                          TextButton(
+                                            onPressed: () async {
+                                              try {
+                                                // Extract equipment_log_id from entry['name'] or another unique field
+                                                final equipmentLogId = _extractEquipmentLogId(entry['name'] ?? '');
+                                                if (equipmentLogId != null) {
+                                                  await EquipmentRepository().editEquipmentLog(
+                                                    equipmentLogId: equipmentLogId,
+                                                    equipmentStatus: statusVal,
+                                                    maintenanceDone: maintenanceVal,
+                                                    shift: shiftVal,
+                                                  );
+                                                  _equipmentBloc.add(FetchEquipment());
+                                                }
+                                                Navigator.pop(context);
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  const SnackBar(content: Text('Equipment log updated')),
+                                                );
+                                              } catch (e) {
+                                                Navigator.pop(context);
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(content: Text('Failed to update: $e')),
+                                                );
+                                              }
+                                            },
+                                            child: const Text('Done'),
+                                          ),
+                                        ],
                                       );
                                     },
                                   );
                                 },
-                              ),
-                            ),
+                              );
+                            }),
                           ],
                         ),
                       ),
@@ -628,104 +617,93 @@ class _EtpLogState extends State<EtpLog> {
                           children: [
                             ..._buildDetailWidgets(entry),
                             const SizedBox(height: 8),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: ElevatedButton.icon(
-                                icon: const Icon(Icons.edit, size: 18),
-                                label: const Text('Edit'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.yellowochre,
-                                  foregroundColor: AppColors.darkblue,
-                                ),
-                                onPressed: () async {
-                                  showDialog(
-                                    context: context,
-                                    builder: (context) {
-                                      // Defensive parse for preloaded values
-                                      double quantityUsed = double.tryParse(entry['quantity_used'] ?? '') ?? 0;
-                                      double quantityLeft = double.tryParse(entry['quantity_left'] ?? '') ?? 0;
-                                      bool sludgeDischarge = (entry['sludge_discharge'] == 'true');
-                                      int shiftVal = int.tryParse(entry['shift'] ?? '') ?? 1;
-                                      final shiftOptions = [1, 2, 3];
-                                      if (!shiftOptions.contains(shiftVal)) shiftVal = 1;
-                                      return StatefulBuilder(
-                                        builder: (context, setState) {
-                                          return AlertDialog(
-                                            title: const Text('Edit Chemical Log'),
-                                            content: Column(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                TextFormField(
-                                                  initialValue: quantityUsed.toString(),
-                                                  keyboardType: TextInputType.number,
-                                                  decoration: const InputDecoration(labelText: 'Quantity Used'),
-                                                  onChanged: (val) => setState(() => quantityUsed = double.tryParse(val) ?? 0),
-                                                ),
-                                                TextFormField(
-                                                  initialValue: quantityLeft.toString(),
-                                                  keyboardType: TextInputType.number,
-                                                  decoration: const InputDecoration(labelText: 'Quantity Left'),
-                                                  onChanged: (val) => setState(() => quantityLeft = double.tryParse(val) ?? 0),
-                                                ),
-                                                SwitchListTile(
-                                                  title: const Text('Sludge Discharge'),
-                                                  value: sludgeDischarge,
-                                                  onChanged: (val) => setState(() => sludgeDischarge = val),
-                                                ),
-                                                DropdownButtonFormField<int>(
-                                                  value: shiftVal,
-                                                  items: const [
-                                                    DropdownMenuItem(value: 1, child: Text('1')),
-                                                    DropdownMenuItem(value: 2, child: Text('2')),
-                                                    DropdownMenuItem(value: 3, child: Text('3')),
-                                                  ],
-                                                  onChanged: (val) => setState(() => shiftVal = val ?? 1),
-                                                  decoration: const InputDecoration(labelText: 'Shift'),
-                                                ),
-                                              ],
+                            _buildEditButton(entry, () async {
+                              showDialog(
+                                context: context,
+                                builder: (context) {
+                                  // Defensive parse for preloaded values
+                                  double quantityUsed = double.tryParse(entry['quantity_used'] ?? '') ?? 0;
+                                  double quantityLeft = double.tryParse(entry['quantity_left'] ?? '') ?? 0;
+                                  bool sludgeDischarge = (entry['sludge_discharge'] == 'true');
+                                  int shiftVal = int.tryParse(entry['shift'] ?? '') ?? 1;
+                                  final shiftOptions = [1, 2, 3];
+                                  if (!shiftOptions.contains(shiftVal)) shiftVal = 1;
+                                  return StatefulBuilder(
+                                    builder: (context, setState) {
+                                      return AlertDialog(
+                                        title: const Text('Edit Chemical Log'),
+                                        content: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            TextFormField(
+                                              initialValue: quantityUsed.toString(),
+                                              keyboardType: TextInputType.number,
+                                              decoration: const InputDecoration(labelText: 'Quantity Used'),
+                                              onChanged: (val) => setState(() => quantityUsed = double.tryParse(val) ?? 0),
                                             ),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () => Navigator.pop(context),
-                                                child: const Text('Cancel'),
-                                              ),
-                                              TextButton(
-                                                onPressed: () async {
-                                                  try {
-                                                    // Extract chemical_log_id from entry['name']
-                                                    final chemicalLogId = _extractChemicalLogId(entry['name'] ?? '');
-                                                    if (chemicalLogId != null) {
-                                                      await ChemicalLogRepository().editChemicalLog(
-                                                        chemicalLogId: chemicalLogId,
-                                                        quantityUsed: quantityUsed,
-                                                        quantityLeft: quantityLeft,
-                                                        sludgeDischarge: sludgeDischarge,
-                                                        shift: shiftVal,
-                                                      );
-                                                      _chemicallogBloc.add(FetchChemicallog());
-                                                    }
-                                                    Navigator.pop(context);
-                                                    ScaffoldMessenger.of(context).showSnackBar(
-                                                      const SnackBar(content: Text('Chemical log updated')),
-                                                    );
-                                                  } catch (e) {
-                                                    Navigator.pop(context);
-                                                    ScaffoldMessenger.of(context).showSnackBar(
-                                                      SnackBar(content: Text('Failed to update: $e')),
-                                                    );
-                                                  }
-                                                },
-                                                child: const Text('Done'),
-                                              ),
-                                            ],
-                                          );
-                                        },
+                                            TextFormField(
+                                              initialValue: quantityLeft.toString(),
+                                              keyboardType: TextInputType.number,
+                                              decoration: const InputDecoration(labelText: 'Quantity Left'),
+                                              onChanged: (val) => setState(() => quantityLeft = double.tryParse(val) ?? 0),
+                                            ),
+                                            SwitchListTile(
+                                              title: const Text('Sludge Discharge'),
+                                              value: sludgeDischarge,
+                                              onChanged: (val) => setState(() => sludgeDischarge = val),
+                                            ),
+                                            DropdownButtonFormField<int>(
+                                              value: shiftVal,
+                                              items: const [
+                                                DropdownMenuItem(value: 1, child: Text('1')),
+                                                DropdownMenuItem(value: 2, child: Text('2')),
+                                                DropdownMenuItem(value: 3, child: Text('3')),
+                                              ],
+                                              onChanged: (val) => setState(() => shiftVal = val ?? 1),
+                                              decoration: const InputDecoration(labelText: 'Shift'),
+                                            ),
+                                          ],
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(context),
+                                            child: const Text('Cancel'),
+                                          ),
+                                          TextButton(
+                                            onPressed: () async {
+                                              try {
+                                                // Extract chemical_log_id from entry['name']
+                                                final chemicalLogId = _extractChemicalLogId(entry['name'] ?? '');
+                                                if (chemicalLogId != null) {
+                                                  await ChemicalLogRepository().editChemicalLog(
+                                                    chemicalLogId: chemicalLogId,
+                                                    quantityUsed: quantityUsed,
+                                                    quantityLeft: quantityLeft,
+                                                    sludgeDischarge: sludgeDischarge,
+                                                    shift: shiftVal,
+                                                  );
+                                                  _chemicallogBloc.add(FetchChemicallog());
+                                                }
+                                                Navigator.pop(context);
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  const SnackBar(content: Text('Chemical log updated')),
+                                                );
+                                              } catch (e) {
+                                                Navigator.pop(context);
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(content: Text('Failed to update: $e')),
+                                                );
+                                              }
+                                            },
+                                            child: const Text('Done'),
+                                          ),
+                                        ],
                                       );
                                     },
                                   );
                                 },
-                              ),
-                            ),
+                              );
+                            }),
                           ],
                         ),
                       ),
@@ -790,95 +768,84 @@ class _EtpLogState extends State<EtpLog> {
                           children: [
                             ..._buildDetailWidgets(entry),
                             const SizedBox(height: 8),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: ElevatedButton.icon(
-                                icon: const Icon(Icons.edit, size: 18),
-                                label: const Text('Edit'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.yellowochre,
-                                  foregroundColor: AppColors.darkblue,
-                                ),
-                                onPressed: () async {
-                                  showDialog(
-                                    context: context,
-                                    builder: (context) {
-                                      double inletValue = double.tryParse(entry['inlet'] ?? '') ?? 0;
-                                      double outletValue = double.tryParse(entry['outlet'] ?? '') ?? 0;
-                                      int shiftVal = int.tryParse(entry['shift'] ?? '') ?? 1;
-                                      final shiftOptions = [1, 2, 3];
-                                      if (!shiftOptions.contains(shiftVal)) shiftVal = 1;
-                                      return StatefulBuilder(
-                                        builder: (context, setState) {
-                                          return AlertDialog(
-                                            title: const Text('Edit Flow Log'),
-                                            content: Column(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                TextFormField(
-                                                  initialValue: inletValue.toString(),
-                                                  keyboardType: TextInputType.number,
-                                                  decoration: const InputDecoration(labelText: 'Inlet Value'),
-                                                  onChanged: (val) => setState(() => inletValue = double.tryParse(val) ?? 0),
-                                                ),
-                                                TextFormField(
-                                                  initialValue: outletValue.toString(),
-                                                  keyboardType: TextInputType.number,
-                                                  decoration: const InputDecoration(labelText: 'Outlet Value'),
-                                                  onChanged: (val) => setState(() => outletValue = double.tryParse(val) ?? 0),
-                                                ),
-                                                DropdownButtonFormField<int>(
-                                                  value: shiftVal,
-                                                  items: const [
-                                                    DropdownMenuItem(value: 1, child: Text('1')),
-                                                    DropdownMenuItem(value: 2, child: Text('2')),
-                                                    DropdownMenuItem(value: 3, child: Text('3')),
-                                                  ],
-                                                  onChanged: (val) => setState(() => shiftVal = val ?? 1),
-                                                  decoration: const InputDecoration(labelText: 'Shift'),
-                                                ),
-                                              ],
+                            _buildEditButton(entry, () async {
+                              showDialog(
+                                context: context,
+                                builder: (context) {
+                                  double inletValue = double.tryParse(entry['inlet'] ?? '') ?? 0;
+                                  double outletValue = double.tryParse(entry['outlet'] ?? '') ?? 0;
+                                  int shiftVal = int.tryParse(entry['shift'] ?? '') ?? 1;
+                                  final shiftOptions = [1, 2, 3];
+                                  if (!shiftOptions.contains(shiftVal)) shiftVal = 1;
+                                  return StatefulBuilder(
+                                    builder: (context, setState) {
+                                      return AlertDialog(
+                                        title: const Text('Edit Flow Log'),
+                                        content: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            TextFormField(
+                                              initialValue: inletValue.toString(),
+                                              keyboardType: TextInputType.number,
+                                              decoration: const InputDecoration(labelText: 'Inlet Value'),
+                                              onChanged: (val) => setState(() => inletValue = double.tryParse(val) ?? 0),
                                             ),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () => Navigator.pop(context),
-                                                child: const Text('Cancel'),
-                                              ),
-                                              TextButton(
-                                                onPressed: () async {
-                                                  try {
-                                                    final flowLogId = _extractFlowLogId(entry['name'] ?? '');
-                                                    if (flowLogId != null) {
-                                                      await FlowLogRepository().editFlowLog(
-                                                        flowLogId: flowLogId,
-                                                        inletValue: inletValue,
-                                                        outletValue: outletValue,
-                                                        shift: shiftVal,
-                                                      );
-                                                      _flowlogBloc.add(FetchFlowlog());
-                                                    }
-                                                    Navigator.pop(context);
-                                                    ScaffoldMessenger.of(context).showSnackBar(
-                                                      const SnackBar(content: Text('Flow log updated')),
-                                                    );
-                                                  } catch (e) {
-                                                    Navigator.pop(context);
-                                                    ScaffoldMessenger.of(context).showSnackBar(
-                                                      SnackBar(content: Text('Failed to update: $e')),
-                                                    );
-                                                  }
-                                                },
-                                                child: const Text('Done'),
-                                              ),
-                                            ],
-                                          );
-                                        },
+                                            TextFormField(
+                                              initialValue: outletValue.toString(),
+                                              keyboardType: TextInputType.number,
+                                              decoration: const InputDecoration(labelText: 'Outlet Value'),
+                                              onChanged: (val) => setState(() => outletValue = double.tryParse(val) ?? 0),
+                                            ),
+                                            DropdownButtonFormField<int>(
+                                              value: shiftVal,
+                                              items: const [
+                                                DropdownMenuItem(value: 1, child: Text('1')),
+                                                DropdownMenuItem(value: 2, child: Text('2')),
+                                                DropdownMenuItem(value: 3, child: Text('3')),
+                                              ],
+                                              onChanged: (val) => setState(() => shiftVal = val ?? 1),
+                                              decoration: const InputDecoration(labelText: 'Shift'),
+                                            ),
+                                          ],
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(context),
+                                            child: const Text('Cancel'),
+                                          ),
+                                          TextButton(
+                                            onPressed: () async {
+                                              try {
+                                                final flowLogId = _extractFlowLogId(entry['name'] ?? '');
+                                                if (flowLogId != null) {
+                                                  await FlowLogRepository().editFlowLog(
+                                                    flowLogId: flowLogId,
+                                                    inletValue: inletValue,
+                                                    outletValue: outletValue,
+                                                    shift: shiftVal,
+                                                  );
+                                                  _flowlogBloc.add(FetchFlowlog());
+                                                }
+                                                Navigator.pop(context);
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  const SnackBar(content: Text('Flow log updated')),
+                                                );
+                                              } catch (e) {
+                                                Navigator.pop(context);
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(content: Text('Failed to update: $e')),
+                                                );
+                                              }
+                                            },
+                                            child: const Text('Done'),
+                                          ),
+                                        ],
                                       );
                                     },
                                   );
                                 },
-                              ),
-                            ),
+                              );
+                            }),
                           ],
                         ),
                       ),
@@ -941,87 +908,76 @@ class _EtpLogState extends State<EtpLog> {
                           children: [
                             ..._buildDetailWidgets(entry),
                             const SizedBox(height: 8),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: ElevatedButton.icon(
-                                icon: const Icon(Icons.edit, size: 18),
-                                label: const Text('Edit'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.yellowochre,
-                                  foregroundColor: AppColors.darkblue,
-                                ),
-                                onPressed: () async {
-                                  showDialog(
-                                    context: context,
-                                    builder: (context) {
-                                      double value = double.tryParse(entry['value'] ?? '') ?? 0;
-                                      int shiftVal = int.tryParse(entry['shift'] ?? '') ?? 1;
-                                      final shiftOptions = [1, 2, 3];
-                                      if (!shiftOptions.contains(shiftVal)) shiftVal = 1;
-                                      return StatefulBuilder(
-                                        builder: (context, setState) {
-                                          return AlertDialog(
-                                            title: const Text('Edit Parameter Log'),
-                                            content: Column(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                TextFormField(
-                                                  initialValue: value.toString(),
-                                                  keyboardType: TextInputType.number,
-                                                  decoration: const InputDecoration(labelText: 'Value'),
-                                                  onChanged: (val) => setState(() => value = double.tryParse(val) ?? 0),
-                                                ),
-                                                DropdownButtonFormField<int>(
-                                                  value: shiftVal,
-                                                  items: const [
-                                                    DropdownMenuItem(value: 1, child: Text('1')),
-                                                    DropdownMenuItem(value: 2, child: Text('2')),
-                                                    DropdownMenuItem(value: 3, child: Text('3')),
-                                                  ],
-                                                  onChanged: (val) => setState(() => shiftVal = val ?? 1),
-                                                  decoration: const InputDecoration(labelText: 'Shift'),
-                                                ),
-                                              ],
+                            _buildEditButton(entry, () async {
+                              showDialog(
+                                context: context,
+                                builder: (context) {
+                                  double value = double.tryParse(entry['value'] ?? '') ?? 0;
+                                  int shiftVal = int.tryParse(entry['shift'] ?? '') ?? 1;
+                                  final shiftOptions = [1, 2, 3];
+                                  if (!shiftOptions.contains(shiftVal)) shiftVal = 1;
+                                  return StatefulBuilder(
+                                    builder: (context, setState) {
+                                      return AlertDialog(
+                                        title: const Text('Edit Parameter Log'),
+                                        content: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            TextFormField(
+                                              initialValue: value.toString(),
+                                              keyboardType: TextInputType.number,
+                                              decoration: const InputDecoration(labelText: 'Value'),
+                                              onChanged: (val) => setState(() => value = double.tryParse(val) ?? 0),
                                             ),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () => Navigator.pop(context),
-                                                child: const Text('Cancel'),
-                                              ),
-                                              TextButton(
-                                                onPressed: () async {
-                                                  try {
-                                                    final paramLogId = _extractParameterLogId(entry['name'] ?? '');
-                                                    if (paramLogId != null) {
-                                                      await ParameterLogRepository().editParameterLog(
-                                                        flowParameterLogId: paramLogId,
-                                                        value: value,
-                                                        shift: shiftVal,
-                                                      );
-                                                      _parameterlogBloc.add(FetchParameterlog());
-                                                    }
-                                                    Navigator.pop(context);
-                                                    ScaffoldMessenger.of(context).showSnackBar(
-                                                      const SnackBar(content: Text('Parameter log updated')),
-                                                    );
-                                                  } catch (e) {
-                                                    Navigator.pop(context);
-                                                    ScaffoldMessenger.of(context).showSnackBar(
-                                                      SnackBar(content: Text('Failed to update: $e')),
-                                                    );
-                                                  }
-                                                },
-                                                child: const Text('Done'),
-                                              ),
-                                            ],
-                                          );
-                                        },
+                                            DropdownButtonFormField<int>(
+                                              value: shiftVal,
+                                              items: const [
+                                                DropdownMenuItem(value: 1, child: Text('1')),
+                                                DropdownMenuItem(value: 2, child: Text('2')),
+                                                DropdownMenuItem(value: 3, child: Text('3')),
+                                              ],
+                                              onChanged: (val) => setState(() => shiftVal = val ?? 1),
+                                              decoration: const InputDecoration(labelText: 'Shift'),
+                                            ),
+                                          ],
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(context),
+                                            child: const Text('Cancel'),
+                                          ),
+                                          TextButton(
+                                            onPressed: () async {
+                                              try {
+                                                final paramLogId = _extractParameterLogId(entry['name'] ?? '');
+                                                if (paramLogId != null) {
+                                                  await ParameterLogRepository().editParameterLog(
+                                                    flowParameterLogId: paramLogId,
+                                                    value: value,
+                                                    shift: shiftVal,
+                                                  );
+                                                  _parameterlogBloc.add(FetchParameterlog());
+                                                }
+                                                Navigator.pop(context);
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  const SnackBar(content: Text('Parameter log updated')),
+                                                );
+                                              } catch (e) {
+                                                Navigator.pop(context);
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(content: Text('Failed to update: $e')),
+                                                );
+                                              }
+                                            },
+                                            child: const Text('Done'),
+                                          ),
+                                        ],
                                       );
                                     },
                                   );
                                 },
-                              ),
-                            ),
+                              );
+                            }),
                           ],
                         ),
                       ),
@@ -1336,5 +1292,23 @@ class _EtpLogState extends State<EtpLog> {
       _parameterlogBloc.close();
     }
     super.dispose();
+  }
+
+  Widget _buildEditButton(Map<String, dynamic> entry, Function() onEdit) {
+    // Only show edit button if user is not role_id 2
+    if (_userRole == 2) return const SizedBox.shrink();
+    
+    return Align(
+      alignment: Alignment.centerRight,
+      child: ElevatedButton.icon(
+        icon: const Icon(Icons.edit, size: 18),
+        label: const Text('Edit'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.yellowochre,
+          foregroundColor: AppColors.darkblue,
+        ),
+        onPressed: onEdit,
+      ),
+    );
   }
 }

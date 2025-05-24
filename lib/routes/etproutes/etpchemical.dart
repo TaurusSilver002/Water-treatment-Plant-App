@@ -5,6 +5,7 @@ import 'package:watershooters/config.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:watershooters/bloc/plantchem_bloc.dart';
 import 'package:watershooters/models/plantchem_repository.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class EtpChemical extends StatefulWidget {
   const EtpChemical({super.key});
@@ -16,12 +17,21 @@ class EtpChemical extends StatefulWidget {
 class _EtpChemicalState extends State<EtpChemical> {
   List<Map<String, dynamic>> chemicals = [];
   late final PlantchemBloc _plantchemBloc;
+  int? _userRole;
 
   @override
   void initState() {
     super.initState();
     _plantchemBloc = PlantchemBloc(repository: PlantChemRepository());
     _plantchemBloc.add(FetchPlantchem());
+    _loadUserRole();
+  }
+
+  Future<void> _loadUserRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _userRole = prefs.getInt('role_id');
+    });
   }
 
   @override
@@ -194,14 +204,15 @@ class _EtpChemicalState extends State<EtpChemical> {
                       icon: const Icon(Icons.arrow_back, color: AppColors.darkblue),
                       onPressed: () => Navigator.pop(context),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16.0),
-                      child: FloatingActionButton(
-                        backgroundColor: AppColors.darkblue,
-                        onPressed: _addNewChemical,
-                        child: const Icon(Icons.add, color: AppColors.yellowochre),
+                    if (_userRole == 1)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16.0),
+                        child: FloatingActionButton(
+                          backgroundColor: AppColors.darkblue,
+                          onPressed: _addNewChemical,
+                          child: const Icon(Icons.add, color: AppColors.yellowochre),
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
