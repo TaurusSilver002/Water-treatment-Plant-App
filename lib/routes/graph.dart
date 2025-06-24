@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:watershooters/bloc/graph_bloc.dart';
-import 'package:watershooters/bloc/graph_event.dart' as graph_event;
-import 'package:watershooters/bloc/graph_state.dart' as graph_state;
+import 'package:watershooters/bloc/graph/graph_bloc.dart';
+import 'package:watershooters/bloc/graph/graph_event.dart' as graph_event;
+import 'package:watershooters/bloc/graph/graph_state.dart' as graph_state;
 import 'package:watershooters/models/graph_repository.dart';
 import 'package:watershooters/config.dart';
 import 'package:fl_chart/fl_chart.dart';

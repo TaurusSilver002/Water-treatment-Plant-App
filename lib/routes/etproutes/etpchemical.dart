@@ -3,7 +3,7 @@ import 'package:watershooters/components/customAppBar.dart';
 import 'package:watershooters/components/customdrawer.dart';
 import 'package:watershooters/config.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:watershooters/bloc/plantchem_bloc.dart';
+import 'package:watershooters/bloc/plantchem/plantchem_bloc.dart';
 import 'package:watershooters/models/plantchem_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
