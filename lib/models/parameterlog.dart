@@ -66,10 +66,10 @@ class ParameterLogRepository {
     }
     try {
       final response = await dio.post(
-        AppConfig.parameterlogadd,
-        data: {
+        AppConfig.parameterlogadd,        data: {
           'plant_flow_parameter_id': log['plant_flow_parameter_id'],
           'value': log['value'],
+          'outlet_value': log['outlet_value'],
           'shift': log['shift'],
           'plant_id': plantId,
         },

@@ -185,8 +185,7 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
         int selectedFlowShift = 1;
         String? errorText;
         // --- Parameter log fields ---
-        int selectedParameterId = 0;
-        String selectedParameterValue = '';
+        int selectedParameterId = 0;        String selectedParameterValue = '';
         int selectedParameterShift = 1;
 
         Future<void> pickImage(bool isInlet) async {
@@ -403,11 +402,15 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
                           labelText: 'Parameter',
                           hintText: 'Select Parameter',
                         ),
-                      ),
-                      TextField(
-                        decoration: const InputDecoration(labelText: 'Value'),
+                      ),                      TextField(
+                        decoration: const InputDecoration(labelText: 'Inlet Value'),
                         keyboardType: TextInputType.number,
                         onChanged: (val) => setState(() => selectedParameterValue = val),
+                      ),
+                      TextField(
+                        decoration: const InputDecoration(labelText: 'Outlet Value'),
+                        keyboardType: TextInputType.number,
+                        onChanged: (val) => setState(() => selectedOutletValue = val),
                       ),
                       DropdownButtonFormField<int>(
                         value: selectedParameterShift,
@@ -496,15 +499,18 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
                     } else if (_selectedTab == 3) {                      if (selectedParameterId <= 0) {
                         setState(() => errorText = 'Please select a parameter.');
                         return;
-                      }
-                      if (selectedParameterValue.isEmpty) {
-                        setState(() => errorText = 'Please enter a value for the parameter.');
+                      }                      if (selectedParameterValue.isEmpty) {
+                        setState(() => errorText = 'Please enter an inlet value for the parameter.');
                         return;
                       }
-                      final entry = {
+                      if (selectedOutletValue.isEmpty) {
+                        setState(() => errorText = 'Please enter an outlet value for the parameter.');
+                        return;
+                      }                      final entry = {
                         'plant_id': plantId,
                         'plant_flow_parameter_id': selectedParameterId,
                         'value': selectedParameterValue,
+                        'outlet_value': selectedOutletValue,
                         'shift': selectedParameterShift,
                       };
                       _addParameterLogEntry(entry);
@@ -1011,9 +1017,9 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
       orElse: () => {'name': 'Parameter ${log['flow_parameter_log_id'] ?? ''}', 'unit': ''},
     );
     final unit = param['unit'] as String? ?? '';
-    return {
-      'name': param['name'] as String,
-      'value': '${log['value']?.toString() ?? 'N/A'}${unit.isNotEmpty ? ' $unit' : ''}',
+    return {      'name': param['name'] as String,
+      'value': '${log['inlet_value']?.toString() ?? 'N/A'}${unit.isNotEmpty ? ' $unit' : ''}',
+      'outlet_value': '${log['outlet_value']?.toString() ?? 'N/A'}${unit.isNotEmpty ? ' $unit' : ''}',
       'shift': (log['shift'] != null) ? log['shift'].toString() : 'N/A',
       'date': createdAt != null ? _formatDate(createdAt) : 'N/A',
     };
@@ -1123,8 +1129,10 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
       ];
     } else {
       // Default case for parameter logs
-      return [
-        Text('Value: ${entry['value'] ?? 'N/A'}',
+      return [        Text('Inlet Value: ${entry['value'] ?? 'N/A'}',
+            style: const TextStyle(color: AppColors.cream)),
+        const SizedBox(height: 8),
+        Text('Outlet Value: ${entry['outlet_value'] ?? 'N/A'}',
             style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
         Text('Shift: ${entry['shift'] ?? 'N/A'}',
