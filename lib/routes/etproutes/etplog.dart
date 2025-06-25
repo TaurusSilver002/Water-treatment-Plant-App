@@ -15,6 +15,9 @@ import 'package:watershooters/models/equiplog.dart';
 import 'package:watershooters/models/chemicallog.dart';
 import 'package:watershooters/models/flowlog.dart';
 import 'package:watershooters/models/parameterlog.dart';
+import 'package:watershooters/models/plantequip_repository.dart';
+import 'package:watershooters/models/plantchem_repository.dart';
+import 'package:watershooters/models/plantparam_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class EtpLog extends StatefulWidget {
@@ -29,13 +32,17 @@ class EtpLog extends StatefulWidget {
   State<EtpLog> createState() => _EtpLogState();
 }
 
-class _EtpLogState extends State<EtpLog> {
+class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
   late final EquipmentBloc _equipmentBloc;
   late final ChemicallogBloc _chemicallogBloc;
   late final FlowlogBloc _flowlogBloc;
   late final ParameterlogBloc _parameterlogBloc;
+  late final TabController _tabController;
   int _selectedTab = 0; // 0=Equipment, 1=Chemical, 2=Flow, 3=Parameter
   int? _userRole;
+  List<Map<String, dynamic>> _equipmentList = []; // Store equipment list
+  List<Map<String, dynamic>> _chemicalList = []; // Store chemical list
+  List<Map<String, dynamic>> _parameterList = []; // Store parameter list
 
   @override
   void initState() {
@@ -44,15 +51,33 @@ class _EtpLogState extends State<EtpLog> {
     _chemicallogBloc = widget.chemicallogBloc ?? ChemicallogBloc(repository: ChemicalLogRepository());
     _flowlogBloc = widget.flowlogBloc ?? FlowlogBloc(repository: FlowLogRepository());
     _parameterlogBloc = widget.parameterlogBloc ?? ParameterlogBloc(repository: ParameterLogRepository());
+    _tabController = TabController(length: 4, vsync: this, initialIndex: _selectedTab);
+    _tabController.addListener(_handleTabChange);
     _loadUserRole();
-    if (_selectedTab == 0) {
+    _loadInitialData();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _equipmentBloc.close();
+    _chemicallogBloc.close();
+    _flowlogBloc.close();
+    _parameterlogBloc.close();
+    super.dispose();
+  }
+
+  Future<void> _loadInitialData() async {    if (_selectedTab == 0) {
       _equipmentBloc.add(FetchEquipment());
+      await _fetchEquipmentList(); // Load equipment list for dropdown
     } else if (_selectedTab == 1) {
       _chemicallogBloc.add(FetchChemicallog());
+      await _fetchChemicalList(); // Load chemical list for dropdown
+      await _fetchChemicalList(); // Load chemical list for dropdown
     } else if (_selectedTab == 2) {
-      _flowlogBloc.add(FetchFlowlog());
-    } else if (_selectedTab == 3) {
+      _flowlogBloc.add(FetchFlowlog());    } else if (_selectedTab == 3) {
       _parameterlogBloc.add(FetchParameterlog());
+      await _fetchParameterList(); // Load parameter list for dropdown
     }
   }
 
@@ -61,6 +86,79 @@ class _EtpLogState extends State<EtpLog> {
     setState(() {
       _userRole = prefs.getInt('role_id');
     });
+  }
+  
+  void _handleTabChange() {
+    if (_tabController.index != _selectedTab) {
+      setState(() {
+        _selectedTab = _tabController.index;
+      });
+      _loadInitialData();
+    }
+  }  Future<void> _fetchEquipmentList() async {
+    try {
+      final repo = PlantEquipRepository();
+      final response = await repo.fetchPlantEquipments();
+      setState(() {
+        _equipmentList = response.map((item) => {
+              'equipment_name': item['equipment_name'] ?? 'Unknown',
+              'plant_equipment_id': item['plant_equipment_id'] ?? 0,
+              'status': item['status'] ?? 0,
+              'last_maintenance': item['last_maintenance'] ?? 'N/A',
+            }).toList();
+      });
+    } catch (e) {
+      print('Error fetching equipment list: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error fetching equipment list: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _fetchChemicalList() async {
+    try {
+      final repo = PlantChemRepository();
+      final response = await repo.fetchPlantChemicals();
+      setState(() {
+        _chemicalList = response.map((item) => {
+          'name': item['chemical_name'] ?? 'Unknown',
+          'plant_chemical_id': item['plant_chemical_id'] ?? 0,
+          'quantity': item['quantity'],
+          'chemical_unit': item['chemical_unit'],
+        }).toList();
+      });
+    } catch (e) {
+      print('Error fetching chemical list: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error fetching chemical list: $e')),
+        );
+      }
+    }
+  }
+  Future<void> _fetchParameterList() async {
+    try {
+      final repo = PlantParamRepository();
+      final response = await repo.fetchPlantParams();
+      setState(() {
+        _parameterList = response.map((item) => {
+          'name': item['parameter_name'] ?? 'Unknown',
+          'plant_flow_parameter_id': item['plant_flow_parameter_id'],
+          'target_value': item['target_value'],
+          'tolerance': item['tolerance'],
+          'unit': item['parameter_unit'],
+        }).toList();
+      });
+    } catch (e) {
+      print('Error fetching parameter list: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error fetching parameter list: $e')),
+        );
+      }
+    }
   }
 
   void _addNewEntry() {
@@ -151,16 +249,24 @@ class _EtpLogState extends State<EtpLog> {
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (_selectedTab == 0) ...[
-                      TextField(
-                        decoration: const InputDecoration(labelText: 'Equipment ID (int)'),
-                        keyboardType: TextInputType.number,
-                        onChanged: (val) {
-                          setState(() {
-                            selectedEquipmentId = int.tryParse(val) ?? 0;
-                          });
-                        },
+                  children: [                    if (_selectedTab == 0) ...[                      DropdownButtonFormField<int>(
+                        value: selectedEquipmentId,
+                        items: [
+                          const DropdownMenuItem(value: 0, child: Text('Select Equipment')),
+                          ..._equipmentList.map((equipment) {
+                            final id = equipment['plant_equipment_id'] as int;
+                            final name = equipment['equipment_name'] as String;
+                            return DropdownMenuItem(
+                              value: id,
+                              child: Text(name),
+                            );
+                          }).toList(),
+                        ],
+                        onChanged: (val) => setState(() => selectedEquipmentId = val ?? 0),
+                        decoration: const InputDecoration(
+                          labelText: 'Equipment',
+                          hintText: 'Select Equipment',
+                        ),
                       ),
                       DropdownButtonFormField<int>(
                         value: selectedStatus,
@@ -190,16 +296,25 @@ class _EtpLogState extends State<EtpLog> {
                         ],
                         onChanged: (val) => setState(() => selectedShift = val ?? 1),
                         decoration: const InputDecoration(labelText: 'Shift'),
-                      ),
-                    ] else if (_selectedTab == 1) ...[
-                      TextField(
-                        decoration: const InputDecoration(labelText: 'Chemical ID (int)'),
-                        keyboardType: TextInputType.number,
-                        onChanged: (val) {
-                          setState(() {
-                            selectedChemicalId = int.tryParse(val) ?? 0;
-                          });
-                        },
+                      ),                    ] else if (_selectedTab == 1) ...[
+                      DropdownButtonFormField<int>(
+                        value: selectedChemicalId,
+                        items: [
+                          const DropdownMenuItem(value: 0, child: Text('Select Chemical')),
+                          ..._chemicalList.map((chemical) {
+                            final id = chemical['plant_chemical_id'] as int;
+                            final name = chemical['name'] as String;
+                            return DropdownMenuItem(
+                              value: id,
+                              child: Text('$name (${chemical['quantity']} ${chemical['chemical_unit']})'),
+                            );
+                          }).toList(),
+                        ],
+                        onChanged: (val) => setState(() => selectedChemicalId = val ?? 0),
+                        decoration: const InputDecoration(
+                          labelText: 'Chemical',
+                          hintText: 'Select Chemical',
+                        ),
                       ),
                       TextField(
                         decoration: const InputDecoration(labelText: 'Quantity Used'),
@@ -266,16 +381,28 @@ class _EtpLogState extends State<EtpLog> {
                         ],
                         onChanged: (val) => setState(() => selectedFlowShift = val ?? 1),
                         decoration: const InputDecoration(labelText: 'Shift'),
-                      ),
-                    ] else if (_selectedTab == 3) ...[
-                      TextField(
-                        decoration: const InputDecoration(labelText: 'Parameter ID (int)'),
-                        keyboardType: TextInputType.number,
-                        onChanged: (val) {
-                          setState(() {
-                            selectedParameterId = int.tryParse(val) ?? 0;
-                          });
-                        },
+                      ),                    ] else if (_selectedTab == 3) ...[
+                      DropdownButtonFormField<int>(
+                        value: selectedParameterId,
+                        items: [
+                          const DropdownMenuItem(value: 0, child: Text('Select Parameter')),
+                          ..._parameterList.map((param) {
+                            final id = param['plant_flow_parameter_id'] as int;
+                            final name = param['name'] as String;
+                            final unit = param['unit'] as String?;
+                            final targetValue = param['target_value'];
+                            final tolerance = param['tolerance'];
+                            return DropdownMenuItem(
+                              value: id,
+                              child: Text('$name (${targetValue ?? 0} ± ${tolerance ?? 0} ${unit ?? ''})'),
+                            );
+                          }).toList(),
+                        ],
+                        onChanged: (val) => setState(() => selectedParameterId = val ?? 0),
+                        decoration: const InputDecoration(
+                          labelText: 'Parameter',
+                          hintText: 'Select Parameter',
+                        ),
                       ),
                       TextField(
                         decoration: const InputDecoration(labelText: 'Value'),
@@ -327,9 +454,12 @@ class _EtpLogState extends State<EtpLog> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Equipment log added')),
                       );
-                    } else if (_selectedTab == 1) {
-                      if (selectedChemicalId <= 0 || selectedQuantityUsed.isEmpty || selectedQuantityLeft.isEmpty) {
-                        setState(() => errorText = 'Please fill all required fields.');
+                    } else if (_selectedTab == 1) {                      if (selectedChemicalId <= 0) {
+                        setState(() => errorText = 'Please select a chemical.');
+                        return;
+                      }
+                      if (selectedQuantityUsed.isEmpty || selectedQuantityLeft.isEmpty) {
+                        setState(() => errorText = 'Please enter both quantity used and quantity left.');
                         return;
                       }
                       final entry = {
@@ -363,9 +493,12 @@ class _EtpLogState extends State<EtpLog> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Flow log added')),
                       );
-                    } else if (_selectedTab == 3) {
-                      if (selectedParameterId <= 0 || selectedParameterValue.isEmpty) {
-                        setState(() => errorText = 'Please fill all required fields.');
+                    } else if (_selectedTab == 3) {                      if (selectedParameterId <= 0) {
+                        setState(() => errorText = 'Please select a parameter.');
+                        return;
+                      }
+                      if (selectedParameterValue.isEmpty) {
+                        setState(() => errorText = 'Please enter a value for the parameter.');
                         return;
                       }
                       final entry = {
@@ -426,627 +559,463 @@ class _EtpLogState extends State<EtpLog> {
     }
   }
 
-  Widget _buildLogList() {
-    if (_selectedTab == 0) {
-      return BlocBuilder<EquipmentBloc, EquipmentState>(
-        bloc: _equipmentBloc,
-        builder: (context, state) {
-          if (state is EquipmentLoading) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (state is EquipmentLoaded) {
-            final equipmentLogs = (state.equipmentData['logs'] as List<dynamic>?)
-                    ?.map((log) => _mapBackendLogToEntry(log))
-                    .toList() ??
-                [];
-            if (equipmentLogs.isEmpty) {
-              return const Center(child: Text('No equipment logs available'));
-            }
-            return ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: equipmentLogs.length,
-              itemBuilder: (context, index) {
-                final entry = equipmentLogs[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  color: AppColors.lightblue,
-                  child: ExpansionTile(
-                    title: Text(
-                      entry['name'] ?? 'Unknown',
-                      style: const TextStyle(color: AppColors.cream),
-                    ),
-                    iconColor: AppColors.yellowochre,
-                    collapsedIconColor: AppColors.yellowochre,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            ..._buildDetailWidgets(entry),
-                            const SizedBox(height: 8),
-                            _buildEditButton(entry, () async {
-                              showDialog(
-                                context: context,
-                                builder: (context) {
-                                  // Extract current values from entry
-                                  int statusVal = _statusStringToInt(entry['status'] ?? 'OK');
-                                  bool maintenanceVal = (entry['maintenance'] == 'Done');
-                                  int shiftVal = int.tryParse(entry['shift'] ?? '') ?? 1;
-                                  // Defensive: ensure statusVal and shiftVal are valid
-                                  final statusOptions = [0, 1, 2];
-                                  final shiftOptions = [1, 2, 3];
-                                  if (!statusOptions.contains(statusVal)) statusVal = 0;
-                                  if (!shiftOptions.contains(shiftVal)) shiftVal = 1;
-                                  return StatefulBuilder(
-                                    builder: (context, setState) {
-                                      return AlertDialog(
-                                        title: const Text('Edit Equipment Log'),
-                                        content: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            DropdownButtonFormField<int>(
-                                              value: statusVal,
-                                              items: const [
-                                                DropdownMenuItem(value: 0, child: Text('OK')),
-                                                DropdownMenuItem(value: 1, child: Text('Warning')),
-                                                DropdownMenuItem(value: 2, child: Text('Critical')),
-                                              ],
-                                              onChanged: (val) => setState(() {
-                                                statusVal = val ?? 0;
-                                              }),
-                                              decoration: const InputDecoration(labelText: 'Equipment Status'),
-                                            ),
-                                            SwitchListTile(
-                                              title: const Text('Maintenance Done'),
-                                              value: maintenanceVal,
-                                              onChanged: (val) => setState(() => maintenanceVal = val),
-                                            ),
-                                            DropdownButtonFormField<int>(
-                                              value: shiftVal,
-                                              items: const [
-                                                DropdownMenuItem(value: 1, child: Text('1')),
-                                                DropdownMenuItem(value: 2, child: Text('2')),
-                                                DropdownMenuItem(value: 3, child: Text('3')),
-                                              ],
-                                              onChanged: (val) => setState(() => shiftVal = val ?? 1),
-                                              decoration: const InputDecoration(labelText: 'Shift'),
-                                            ),
-                                          ],
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () => Navigator.pop(context),
-                                            child: const Text('Cancel'),
-                                          ),
-                                          TextButton(
-                                            onPressed: () async {
-                                              try {
-                                                // Extract equipment_log_id from entry['name'] or another unique field
-                                                final equipmentLogId = _extractEquipmentLogId(entry['name'] ?? '');
-                                                if (equipmentLogId != null) {
-                                                  await EquipmentRepository().editEquipmentLog(
-                                                    equipmentLogId: equipmentLogId,
-                                                    equipmentStatus: statusVal,
-                                                    maintenanceDone: maintenanceVal,
-                                                    shift: shiftVal,
-                                                  );
-                                                  _equipmentBloc.add(FetchEquipment());
-                                                }
-                                                Navigator.pop(context);
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  const SnackBar(content: Text('Equipment log updated')),
-                                                );
-                                              } catch (e) {
-                                                Navigator.pop(context);
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  SnackBar(content: Text('Failed to update: $e')),
-                                                );
-                                              }
-                                            },
-                                            child: const Text('Done'),
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  );
-                                },
-                              );
-                            }),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            );
-          } else if (state is EquipmentError) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('Error: ${state.message}'),
-                  ElevatedButton(
-                    onPressed: () => _equipmentBloc.add(FetchEquipment()),
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            );
+  Widget _buildEquipmentLogList() {
+    return BlocBuilder<EquipmentBloc, EquipmentState>(
+      bloc: _equipmentBloc,
+      builder: (context, state) {
+        if (state is EquipmentLoading) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (state is EquipmentLoaded) {
+          final equipmentLogs = (state.equipmentData['logs'] as List<dynamic>?)
+            ?.map((log) => _mapBackendLogToEntry(log))
+            .toList() ?? [];
+          if (equipmentLogs.isEmpty) {
+            return const Center(child: Text('No equipment logs available'));
           }
-          return const Center(child: Text('No data available'));
-        },
-      );
-    } else if (_selectedTab == 1) {
-      return BlocBuilder<ChemicallogBloc, ChemicallogState>(
-        bloc: _chemicallogBloc,
-        builder: (context, state) {
-          if (state is ChemicallogLoading) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (state is ChemicallogLoaded) {
-            final chemicalLogs = (state.chemicallogData['logs'] as List<dynamic>?)
-                    ?.map((log) => _mapBackendChemicalLogToEntry(log))
-                    .toList() ??
-                [];
-            if (chemicalLogs.isEmpty) {
-              return const Center(child: Text('No chemical logs available'));
-            }
-            return ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: chemicalLogs.length,
-              itemBuilder: (context, index) {
-                final entry = chemicalLogs[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  color: AppColors.lightblue,
-                  child: ExpansionTile(
-                    title: Text(
-                      entry['name'] ?? 'Unknown',
-                      style: const TextStyle(color: AppColors.cream),
-                    ),
-                    iconColor: AppColors.yellowochre,
-                    collapsedIconColor: AppColors.yellowochre,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            ..._buildDetailWidgets(entry),
-                            const SizedBox(height: 8),
-                            _buildEditButton(entry, () async {
-                              showDialog(
-                                context: context,
-                                builder: (context) {
-                                  // Defensive parse for preloaded values
-                                  double quantityUsed = double.tryParse(entry['quantity_used'] ?? '') ?? 0;
-                                  double quantityLeft = double.tryParse(entry['quantity_left'] ?? '') ?? 0;
-                                  bool sludgeDischarge = (entry['sludge_discharge'] == 'true');
-                                  int shiftVal = int.tryParse(entry['shift'] ?? '') ?? 1;
-                                  final shiftOptions = [1, 2, 3];
-                                  if (!shiftOptions.contains(shiftVal)) shiftVal = 1;
-                                  return StatefulBuilder(
-                                    builder: (context, setState) {
-                                      return AlertDialog(
-                                        title: const Text('Edit Chemical Log'),
-                                        content: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            TextFormField(
-                                              initialValue: quantityUsed.toString(),
-                                              keyboardType: TextInputType.number,
-                                              decoration: const InputDecoration(labelText: 'Quantity Used'),
-                                              onChanged: (val) => setState(() => quantityUsed = double.tryParse(val) ?? 0),
-                                            ),
-                                            TextFormField(
-                                              initialValue: quantityLeft.toString(),
-                                              keyboardType: TextInputType.number,
-                                              decoration: const InputDecoration(labelText: 'Quantity Left'),
-                                              onChanged: (val) => setState(() => quantityLeft = double.tryParse(val) ?? 0),
-                                            ),
-                                            SwitchListTile(
-                                              title: const Text('Sludge Discharge'),
-                                              value: sludgeDischarge,
-                                              onChanged: (val) => setState(() => sludgeDischarge = val),
-                                            ),
-                                            DropdownButtonFormField<int>(
-                                              value: shiftVal,
-                                              items: const [
-                                                DropdownMenuItem(value: 1, child: Text('1')),
-                                                DropdownMenuItem(value: 2, child: Text('2')),
-                                                DropdownMenuItem(value: 3, child: Text('3')),
-                                              ],
-                                              onChanged: (val) => setState(() => shiftVal = val ?? 1),
-                                              decoration: const InputDecoration(labelText: 'Shift'),
-                                            ),
-                                          ],
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () => Navigator.pop(context),
-                                            child: const Text('Cancel'),
-                                          ),
-                                          TextButton(
-                                            onPressed: () async {
-                                              try {
-                                                // Extract chemical_log_id from entry['name']
-                                                final chemicalLogId = _extractChemicalLogId(entry['name'] ?? '');
-                                                if (chemicalLogId != null) {
-                                                  await ChemicalLogRepository().editChemicalLog(
-                                                    chemicalLogId: chemicalLogId,
-                                                    quantityUsed: quantityUsed,
-                                                    quantityLeft: quantityLeft,
-                                                    sludgeDischarge: sludgeDischarge,
-                                                    shift: shiftVal,
-                                                  );
-                                                  _chemicallogBloc.add(FetchChemicallog());
-                                                }
-                                                Navigator.pop(context);
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  const SnackBar(content: Text('Chemical log updated')),
-                                                );
-                                              } catch (e) {
-                                                Navigator.pop(context);
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  SnackBar(content: Text('Failed to update: $e')),
-                                                );
-                                              }
-                                            },
-                                            child: const Text('Done'),
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  );
-                                },
-                              );
-                            }),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            );
-          } else if (state is ChemicallogError) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('Error: ${state.message}'),
-                  ElevatedButton(
-                    onPressed: () => _chemicallogBloc.add(FetchChemicallog()),
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            );
+          return ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: equipmentLogs.length,
+            itemBuilder: (context, index) {
+              final entry = equipmentLogs[index];
+              return _buildLogCard(entry);
+            },
+          );
+        } else if (state is EquipmentError) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Error: ${state.message}'),
+                ElevatedButton(
+                  onPressed: () => _equipmentBloc.add(FetchEquipment()),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          );
+        }
+        return const Center(child: Text('No data available'));
+      },
+    );
+  }
+  
+  Widget _buildChemicalLogList() {
+    return BlocBuilder<ChemicallogBloc, ChemicallogState>(
+      bloc: _chemicallogBloc,
+      builder: (context, state) {
+        if (state is ChemicallogLoading) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (state is ChemicallogLoaded) {
+          final chemicalLogs = (state.chemicallogData['logs'] as List<dynamic>?)
+            ?.map((log) => _mapBackendChemicalLogToEntry(log))
+            .toList() ?? [];
+          if (chemicalLogs.isEmpty) {
+            return const Center(child: Text('No chemical logs available'));
           }
-          return const Center(child: Text('No data available'));
-        },
-      );
-    } else if (_selectedTab == 2) {
-      return BlocBuilder<FlowlogBloc, FlowlogState>(
-        bloc: _flowlogBloc,
-        builder: (context, state) {
-          if (state is FlowlogLoading) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (state is FlowlogLoaded) {
-            final flowLogs = (state.flowlogData['logs'] as List<dynamic>?)
-                    ?.map((log) => _mapBackendFlowLogToEntry(log))
-                    .where((entry) => entry.isNotEmpty)
-                    .toList() ??
-                [];
-            if (flowLogs.isEmpty) {
-              return const Center(child: Text('No flow logs available'));
-            }
-            return ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: flowLogs.length,
-              itemBuilder: (context, index) {
-                final entry = flowLogs[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  color: AppColors.lightblue,
-                  child: ExpansionTile(
-                    title: Text(
-                      entry['name'] ?? 'Unknown',
-                      style: const TextStyle(color: AppColors.cream),
-                    ),
-                    iconColor: AppColors.yellowochre,
-                    collapsedIconColor: AppColors.yellowochre,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            ..._buildDetailWidgets(entry),
-                            const SizedBox(height: 8),
-                            _buildEditButton(entry, () async {
-                              showDialog(
-                                context: context,
-                                builder: (context) {
-                                  double inletValue = double.tryParse(entry['inlet'] ?? '') ?? 0;
-                                  double outletValue = double.tryParse(entry['outlet'] ?? '') ?? 0;
-                                  int shiftVal = int.tryParse(entry['shift'] ?? '') ?? 1;
-                                  final shiftOptions = [1, 2, 3];
-                                  if (!shiftOptions.contains(shiftVal)) shiftVal = 1;
-                                  return StatefulBuilder(
-                                    builder: (context, setState) {
-                                      return AlertDialog(
-                                        title: const Text('Edit Flow Log'),
-                                        content: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            TextFormField(
-                                              initialValue: inletValue.toString(),
-                                              keyboardType: TextInputType.number,
-                                              decoration: const InputDecoration(labelText: 'Inlet Value'),
-                                              onChanged: (val) => setState(() => inletValue = double.tryParse(val) ?? 0),
-                                            ),
-                                            TextFormField(
-                                              initialValue: outletValue.toString(),
-                                              keyboardType: TextInputType.number,
-                                              decoration: const InputDecoration(labelText: 'Outlet Value'),
-                                              onChanged: (val) => setState(() => outletValue = double.tryParse(val) ?? 0),
-                                            ),
-                                            DropdownButtonFormField<int>(
-                                              value: shiftVal,
-                                              items: const [
-                                                DropdownMenuItem(value: 1, child: Text('1')),
-                                                DropdownMenuItem(value: 2, child: Text('2')),
-                                                DropdownMenuItem(value: 3, child: Text('3')),
-                                              ],
-                                              onChanged: (val) => setState(() => shiftVal = val ?? 1),
-                                              decoration: const InputDecoration(labelText: 'Shift'),
-                                            ),
-                                          ],
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () => Navigator.pop(context),
-                                            child: const Text('Cancel'),
-                                          ),
-                                          TextButton(
-                                            onPressed: () async {
-                                              try {
-                                                final flowLogId = _extractFlowLogId(entry['name'] ?? '');
-                                                if (flowLogId != null) {
-                                                  await FlowLogRepository().editFlowLog(
-                                                    flowLogId: flowLogId,
-                                                    inletValue: inletValue,
-                                                    outletValue: outletValue,
-                                                    shift: shiftVal,
-                                                  );
-                                                  _flowlogBloc.add(FetchFlowlog());
-                                                }
-                                                Navigator.pop(context);
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  const SnackBar(content: Text('Flow log updated')),
-                                                );
-                                              } catch (e) {
-                                                Navigator.pop(context);
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  SnackBar(content: Text('Failed to update: $e')),
-                                                );
-                                              }
-                                            },
-                                            child: const Text('Done'),
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  );
-                                },
-                              );
-                            }),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            );
-          } else if (state is FlowlogError) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('Error: ${state.message}'),
-                  ElevatedButton(
-                    onPressed: () => _flowlogBloc.add(FetchFlowlog()),
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            );
-          }
-          return const Center(child: Text('No data available'));
-        },
-      );
-    } else {
-      return BlocBuilder<ParameterlogBloc, ParameterlogState>(
-        bloc: _parameterlogBloc,
-        builder: (context, state) {
-          if (state is ParameterlogLoading) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (state is ParameterlogLoaded) {
-            final parameterLogs = (state.parameterlogData['logs'] as List<dynamic>? ?? [])
-                .map((log) => _mapBackendParameterLogToEntry(log))
-                .toList();
-            if (parameterLogs.isEmpty) {
-              return const Center(child: Text('No parameter logs available'));
-            }
-            return ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: parameterLogs.length,
-              itemBuilder: (context, index) {
-                final entry = parameterLogs[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  color: AppColors.lightblue,
-                  child: ExpansionTile(
-                    title: Text(
-                      entry['name'] ?? 'Unknown',
-                      style: const TextStyle(color: AppColors.cream),
-                    ),
-                    iconColor: AppColors.yellowochre,
-                    collapsedIconColor: AppColors.yellowochre,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            ..._buildDetailWidgets(entry),
-                            const SizedBox(height: 8),
-                            _buildEditButton(entry, () async {
-                              showDialog(
-                                context: context,
-                                builder: (context) {
-                                  double value = double.tryParse(entry['value'] ?? '') ?? 0;
-                                  int shiftVal = int.tryParse(entry['shift'] ?? '') ?? 1;
-                                  final shiftOptions = [1, 2, 3];
-                                  if (!shiftOptions.contains(shiftVal)) shiftVal = 1;
-                                  return StatefulBuilder(
-                                    builder: (context, setState) {
-                                      return AlertDialog(
-                                        title: const Text('Edit Parameter Log'),
-                                        content: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            TextFormField(
-                                              initialValue: value.toString(),
-                                              keyboardType: TextInputType.number,
-                                              decoration: const InputDecoration(labelText: 'Value'),
-                                              onChanged: (val) => setState(() => value = double.tryParse(val) ?? 0),
-                                            ),
-                                            DropdownButtonFormField<int>(
-                                              value: shiftVal,
-                                              items: const [
-                                                DropdownMenuItem(value: 1, child: Text('1')),
-                                                DropdownMenuItem(value: 2, child: Text('2')),
-                                                DropdownMenuItem(value: 3, child: Text('3')),
-                                              ],
-                                              onChanged: (val) => setState(() => shiftVal = val ?? 1),
-                                              decoration: const InputDecoration(labelText: 'Shift'),
-                                            ),
-                                          ],
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () => Navigator.pop(context),
-                                            child: const Text('Cancel'),
-                                          ),
-                                          TextButton(
-                                            onPressed: () async {
-                                              try {
-                                                final paramLogId = _extractParameterLogId(entry['name'] ?? '');
-                                                if (paramLogId != null) {
-                                                  await ParameterLogRepository().editParameterLog(
-                                                    flowParameterLogId: paramLogId,
-                                                    value: value,
-                                                    shift: shiftVal,
-                                                  );
-                                                  _parameterlogBloc.add(FetchParameterlog());
-                                                }
-                                                Navigator.pop(context);
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  const SnackBar(content: Text('Parameter log updated')),
-                                                );
-                                              } catch (e) {
-                                                Navigator.pop(context);
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  SnackBar(content: Text('Failed to update: $e')),
-                                                );
-                                              }
-                                            },
-                                            child: const Text('Done'),
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  );
-                                },
-                              );
-                            }),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            );
-          } else if (state is ParameterlogError) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('Error: ${state.message}'),
-                  ElevatedButton(
-                    onPressed: () => _parameterlogBloc.add(FetchParameterlog()),
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            );
-          }
-          return const Center(child: Text('No data available'));
-        },
-      );
-    }
+          return ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: chemicalLogs.length,
+            itemBuilder: (context, index) {
+              final entry = chemicalLogs[index];
+              return _buildLogCard(entry);
+            },
+          );
+        } else if (state is ChemicallogError) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Error: ${state.message}'),
+                ElevatedButton(
+                  onPressed: () => _chemicallogBloc.add(FetchChemicallog()),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          );
+        }
+        return const Center(child: Text('No data available'));
+      },
+    );
   }
 
-  Map<String, String> _mapBackendLogToEntry(dynamic log) {
-    return {
-      'name': log['equipment_remark'] ?? 'Equipment ${log['equipment_log_id'] ?? ''}',
-      'status': _mapStatus(log['equipment_status'] ?? 0),
-      'maintenance': (log['maintenance_done'] == true) ? 'Done' : 'Not Done',
-      'shift': (log['shift'] != null) ? log['shift'].toString() : 'N/A',
-      'date': _formatDate(log['start_date']),
-    };
+  Widget _buildFlowLogList() {
+    return BlocBuilder<FlowlogBloc, FlowlogState>(
+      bloc: _flowlogBloc,
+      builder: (context, state) {
+        if (state is FlowlogLoading) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (state is FlowlogLoaded) {
+          final flowLogs = (state.flowlogData['logs'] as List<dynamic>?)
+            ?.map((log) => _mapBackendFlowLogToEntry(log))
+            .where((entry) => entry.isNotEmpty)
+            .toList() ?? [];
+          if (flowLogs.isEmpty) {
+            return const Center(child: Text('No flow logs available'));
+          }
+          return ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: flowLogs.length,
+            itemBuilder: (context, index) {
+              final entry = flowLogs[index];
+              return _buildLogCard(entry);
+            },
+          );
+        } else if (state is FlowlogError) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Error: ${state.message}'),
+                ElevatedButton(
+                  onPressed: () => _flowlogBloc.add(FetchFlowlog()),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          );
+        }
+        return const Center(child: Text('No data available'));
+      },
+    );
   }
 
+  Widget _buildParameterLogList() {
+    return BlocBuilder<ParameterlogBloc, ParameterlogState>(
+      bloc: _parameterlogBloc,
+      builder: (context, state) {
+        if (state is ParameterlogLoading) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (state is ParameterlogLoaded) {
+          final parameterLogs = (state.parameterlogData['logs'] as List<dynamic>?)
+            ?.map((log) => _mapBackendParameterLogToEntry(log))
+            .toList() ?? [];
+          if (parameterLogs.isEmpty) {
+            return const Center(child: Text('No parameter logs available'));
+          }
+          return ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: parameterLogs.length,
+            itemBuilder: (context, index) {
+              final entry = parameterLogs[index];
+              return _buildLogCard(entry);
+            },
+          );
+        } else if (state is ParameterlogError) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Error: ${state.message}'),
+                ElevatedButton(
+                  onPressed: () => _parameterlogBloc.add(FetchParameterlog()),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          );
+        }
+        return const Center(child: Text('No data available'));
+      },
+    );
+  }
+
+  Widget _buildLogCard(Map<String, String> entry) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: AppColors.lightblue,
+      child: ExpansionTile(
+        title: Text(
+          entry['name'] ?? 'Unknown',
+          style: const TextStyle(color: AppColors.cream),
+        ),
+        iconColor: AppColors.yellowochre,
+        collapsedIconColor: AppColors.yellowochre,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ..._buildDetailWidgets(entry),
+                const SizedBox(height: 8),
+                _buildEditButton(entry),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEditButton(Map<String, String> entry) {
+    // Only show edit button if user is not role_id 2
+    if (_userRole == 2) return const SizedBox.shrink();
+    
+    return Align(
+      alignment: Alignment.centerRight,
+      child: ElevatedButton.icon(
+        icon: const Icon(Icons.edit, size: 18),
+        label: const Text('Edit'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.yellowochre,
+          foregroundColor: AppColors.darkblue,
+        ),
+        onPressed: () => _showEditDialog(entry),
+      ),
+    );
+  }
+
+  void _showEditDialog(Map<String, String> entry) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        // Extract current values from entry
+        int statusVal = _statusStringToInt(entry['status'] ?? 'OK');
+        bool maintenanceVal = (entry['maintenance'] == 'Done');
+        int shiftVal = int.tryParse(entry['shift'] ?? '') ?? 1;
+        // Defensive: ensure statusVal and shiftVal are valid
+        final statusOptions = [0, 1, 2];
+        final shiftOptions = [1, 2, 3];
+        if (!statusOptions.contains(statusVal)) statusVal = 0;
+        if (!shiftOptions.contains(shiftVal)) shiftVal = 1;
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Edit Log Entry'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_selectedTab == 0) ...[
+                    DropdownButtonFormField<int>(
+                      value: statusVal,
+                      items: const [
+                        DropdownMenuItem(value: 0, child: Text('OK')),
+                        DropdownMenuItem(value: 1, child: Text('Warning')),
+                        DropdownMenuItem(value: 2, child: Text('Critical')),
+                      ],
+                      onChanged: (val) => setState(() {
+                        statusVal = val ?? 0;
+                      }),
+                      decoration: const InputDecoration(labelText: 'Equipment Status'),
+                    ),
+                    SwitchListTile(
+                      title: const Text('Maintenance Done'),
+                      value: maintenanceVal,
+                      onChanged: (val) => setState(() => maintenanceVal = val),
+                    ),
+                    DropdownButtonFormField<int>(
+                      value: shiftVal,
+                      items: const [
+                        DropdownMenuItem(value: 1, child: Text('1')),
+                        DropdownMenuItem(value: 2, child: Text('2')),
+                        DropdownMenuItem(value: 3, child: Text('3')),
+                      ],
+                      onChanged: (val) => setState(() => shiftVal = val ?? 1),
+                      decoration: const InputDecoration(labelText: 'Shift'),
+                    ),
+                  ] else if (_selectedTab == 1) ...[
+                    TextFormField(
+                      initialValue: entry['quantity_used'],
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Quantity Used'),
+                      onChanged: (val) => setState(() => entry['quantity_used'] = val),
+                    ),
+                    TextFormField(
+                      initialValue: entry['quantity_left'],
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Quantity Left'),
+                      onChanged: (val) => setState(() => entry['quantity_left'] = val),
+                    ),
+                    SwitchListTile(
+                      title: const Text('Sludge Discharge'),
+                      value: (entry['sludge_discharge'] == 'true'),
+                      onChanged: (val) => setState(() => entry['sludge_discharge'] = val.toString()),
+                    ),
+                    DropdownButtonFormField<int>(
+                      value: shiftVal,
+                      items: const [
+                        DropdownMenuItem(value: 1, child: Text('1')),
+                        DropdownMenuItem(value: 2, child: Text('2')),
+                        DropdownMenuItem(value: 3, child: Text('3')),
+                      ],
+                      onChanged: (val) => setState(() => shiftVal = val ?? 1),
+                      decoration: const InputDecoration(labelText: 'Shift'),
+                    ),
+                  ] else if (_selectedTab == 2) ...[
+                    TextFormField(
+                      initialValue: entry['inlet'],
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Inlet Value'),
+                      onChanged: (val) => setState(() => entry['inlet'] = val),
+                    ),
+                    TextFormField(
+                      initialValue: entry['outlet'],
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Outlet Value'),
+                      onChanged: (val) => setState(() => entry['outlet'] = val),
+                    ),
+                    DropdownButtonFormField<int>(
+                      value: shiftVal,
+                      items: const [
+                        DropdownMenuItem(value: 1, child: Text('1')),
+                        DropdownMenuItem(value: 2, child: Text('2')),
+                        DropdownMenuItem(value: 3, child: Text('3')),
+                      ],
+                      onChanged: (val) => setState(() => shiftVal = val ?? 1),
+                      decoration: const InputDecoration(labelText: 'Shift'),
+                    ),
+                  ] else if (_selectedTab == 3) ...[
+                    TextFormField(
+                      initialValue: entry['value'],
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Value'),
+                      onChanged: (val) => setState(() => entry['value'] = val),
+                    ),
+                    DropdownButtonFormField<int>(
+                      value: shiftVal,
+                      items: const [
+                        DropdownMenuItem(value: 1, child: Text('1')),
+                        DropdownMenuItem(value: 2, child: Text('2')),
+                        DropdownMenuItem(value: 3, child: Text('3')),
+                      ],
+                      onChanged: (val) => setState(() => shiftVal = val ?? 1),
+                      decoration: const InputDecoration(labelText: 'Shift'),
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    try {
+                      if (_selectedTab == 0) {
+                        final equipmentLogId = _extractEquipmentLogId(entry['name'] ?? '');
+                        if (equipmentLogId != null) {
+                          await EquipmentRepository().editEquipmentLog(
+                            equipmentLogId: equipmentLogId,
+                            equipmentStatus: statusVal,
+                            maintenanceDone: maintenanceVal,
+                            shift: shiftVal,
+                          );
+                          _equipmentBloc.add(FetchEquipment());
+                        }
+                      } else if (_selectedTab == 1) {
+                        final chemicalLogId = _extractChemicalLogId(entry['name'] ?? '');
+                        if (chemicalLogId != null) {
+                          await ChemicalLogRepository().editChemicalLog(
+                            chemicalLogId: chemicalLogId,
+                            quantityUsed: double.tryParse(entry['quantity_used'] ?? '') ?? 0,
+                            quantityLeft: double.tryParse(entry['quantity_left'] ?? '') ?? 0,
+                            sludgeDischarge: (entry['sludge_discharge'] == 'true'),
+                            shift: shiftVal,
+                          );
+                          _chemicallogBloc.add(FetchChemicallog());
+                        }
+                      } else if (_selectedTab == 2) {
+                        final flowLogId = _extractFlowLogId(entry['name'] ?? '');
+                        if (flowLogId != null) {
+                          await FlowLogRepository().editFlowLog(
+                            flowLogId: flowLogId,
+                            inletValue: double.tryParse(entry['inlet'] ?? '') ?? 0,
+                            outletValue: double.tryParse(entry['outlet'] ?? '') ?? 0,
+                            shift: shiftVal,
+                          );
+                          _flowlogBloc.add(FetchFlowlog());
+                        }
+                      } else if (_selectedTab == 3) {
+                        final paramLogId = _extractParameterLogId(entry['name'] ?? '');
+                        if (paramLogId != null) {
+                          await ParameterLogRepository().editParameterLog(
+                            flowParameterLogId: paramLogId,
+                            value: double.tryParse(entry['value'] ?? '') ?? 0,
+                            shift: shiftVal,
+                          );
+                          _parameterlogBloc.add(FetchParameterlog());
+                        }
+                      }
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Log entry updated')),
+                      );
+                    } catch (e) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Failed to update: $e')),
+                      );
+                    }
+                  },
+                  child: const Text('Done'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );  }  Map<String, String> _mapBackendLogToEntry(dynamic log) {
+  print('Mapping equipment log: $log');
+  final name = log['equipment_name'] ?? 'Equipment ${log['equipment_log_id'] ?? 'Unknown'}';
+  return {
+    'name': name,
+    'plant_equipment_id': log['plant_equipment_id']?.toString() ?? 'N/A',
+    'status': _mapStatus(log['equipment_status'] ?? 0),
+    'maintenance': (log['maintenance_done'] == true) ? 'Done' : 'Not Done',
+    'shift': log['shift']?.toString() ?? 'N/A',
+    'date': _formatDate(log['created_at'] ?? log['start_date'] ?? ''),
+  };
+}
   Map<String, String> _mapBackendChemicalLogToEntry(dynamic log) {
+    final createdAt = log['created_at'];
+    // Find the matching chemical from _chemicalList to get the name
+    final chemicalId = log['plant_chemical_id'];
+    final chemical = _chemicalList.firstWhere(
+      (c) => c['plant_chemical_id'] == chemicalId,
+      orElse: () => {'name': 'Chemical ${log['chemical_log_id'] ?? ''}'},
+    );
     return {
-      'name': 'Chemical Log ${log['chemical_log_id'] ?? ''}',
+      'name': chemical['name'] as String,
       'quantity_left': log['quantity_left']?.toString() ?? 'N/A',
       'quantity_used': log['quantity_used']?.toString() ?? 'N/A',
       'sludge_discharge': (log['sludge_discharge'] == true) ? 'true' : 'false',
       'shift': (log['shift'] != null) ? log['shift'].toString() : 'N/A',
-      'date': _formatDate(log['created_at']),
+      'date': createdAt != null ? _formatDate(createdAt) : 'N/A',
     };
   }
-
   Map<String, String> _mapBackendFlowLogToEntry(dynamic log) {
     if (log['del_flag'] == true) {
       return {};
     }
+    final createdAt = log['created_at'] ?? log['start_date'];
     return {
       'name': log['flow_remark'] ?? 'Flow ${log['flow_log_id'] ?? ''}',
       'inlet': log['inlet_value']?.toString() ?? 'N/A',
       'outlet': log['outlet_value']?.toString() ?? 'N/A',
       'shift': (log['shift'] != null) ? log['shift'].toString() : 'N/A',
-      'date': _formatDate(log['start_date']),
+      'date': createdAt != null ? _formatDate(createdAt) : 'N/A',
       'inlet_image': log['inlet_image']?.toString() ?? 'N/A',
       'outlet_image': log['outlet_image']?.toString() ?? 'N/A',
     };
-  }
-
-  Map<String, String> _mapBackendParameterLogToEntry(dynamic log) {
+  }  Map<String, String> _mapBackendParameterLogToEntry(dynamic log) {
+    final createdAt = log['created_at'];
+    final paramId = log['plant_flow_parameter_id'];
+    final param = _parameterList.firstWhere(
+      (p) => p['plant_flow_parameter_id'] == paramId,
+      orElse: () => {'name': 'Parameter ${log['flow_parameter_log_id'] ?? ''}', 'unit': ''},
+    );
+    final unit = param['unit'] as String? ?? '';
     return {
-      'name': 'Parameter Log ${log['flow_parameter_log_id'] ?? ''}',
-      'value': log['value']?.toString() ?? 'N/A',
+      'name': param['name'] as String,
+      'value': '${log['value']?.toString() ?? 'N/A'}${unit.isNotEmpty ? ' $unit' : ''}',
       'shift': (log['shift'] != null) ? log['shift'].toString() : 'N/A',
-      'date': _formatDate(log['created_at']),
+      'date': createdAt != null ? _formatDate(createdAt) : 'N/A',
     };
   }
 
@@ -1062,20 +1031,24 @@ class _EtpLogState extends State<EtpLog> {
         return 'Unknown';
     }
   }
-
   String _formatDate(dynamic date) {
     if (date == null) return 'N/A';
     try {
       final dateTime = DateTime.parse(date).toLocal();
-      return dateTime.toString().substring(0, 16);
+      return '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')} '
+             '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
     } catch (_) {
       return 'N/A';
     }
   }
-
-  List<Widget> _buildDetailWidgets(Map<String, String> entry) {
-    if (_selectedTab == 0) {
+  List<Widget> _buildDetailWidgets(Map<String, String> entry) {    if (_selectedTab == 0) {
       return [
+        Text('Equipment Name: ${entry['name'] ?? 'N/A'}',
+            style: const TextStyle(color: AppColors.cream)),
+        const SizedBox(height: 8),
+        Text('Equipment ID: ${entry['plant_equipment_id'] ?? 'N/A'}',
+            style: const TextStyle(color: AppColors.cream)),
+        const SizedBox(height: 8),
         Text('Status: ${entry['status'] ?? 'N/A'}',
             style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
@@ -1083,6 +1056,9 @@ class _EtpLogState extends State<EtpLog> {
             style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
         Text('Shift: ${entry['shift'] ?? 'N/A'}',
+            style: const TextStyle(color: AppColors.cream)),
+        const SizedBox(height: 8),
+        Text('Remark: ${entry['remark'] ?? 'N/A'}',
             style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
         Text('Date: ${entry['date'] ?? 'N/A'}',
@@ -1099,8 +1075,7 @@ class _EtpLogState extends State<EtpLog> {
         Text('Shift: ${entry['shift']}', style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
         Text('Date: ${entry['date']}', style: const TextStyle(color: AppColors.cream)),
-      ];
-    } else if (_selectedTab == 2) {
+      ];    } else if (_selectedTab == 2) {
       return [
         Text('Inlet: ${entry['inlet']}',
             style: const TextStyle(color: AppColors.cream)),
@@ -1117,11 +1092,10 @@ class _EtpLogState extends State<EtpLog> {
             placeholder: (context, url) =>
                 const Center(child: CircularProgressIndicator()),
             errorWidget: (context, url, error) =>
-                const Text('Error loading image',
-                    style: TextStyle(color: AppColors.cream)),
+                const Text('Error loading image'),
           ),
-          const SizedBox(height: 8),
         ],
+        const SizedBox(height: 8),
         Text('Outlet: ${entry['outlet']}',
             style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
@@ -1137,11 +1111,10 @@ class _EtpLogState extends State<EtpLog> {
             placeholder: (context, url) =>
                 const Center(child: CircularProgressIndicator()),
             errorWidget: (context, url, error) =>
-                const Text('Error loading image',
-                    style: TextStyle(color: AppColors.cream)),
+                const Text('Error loading image'),
           ),
-          const SizedBox(height: 8),
         ],
+        const SizedBox(height: 8),
         Text('Shift: ${entry['shift']}',
             style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
@@ -1149,12 +1122,16 @@ class _EtpLogState extends State<EtpLog> {
             style: const TextStyle(color: AppColors.cream)),
       ];
     } else {
+      // Default case for parameter logs
       return [
-        Text('Value: ${entry['value']}', style: const TextStyle(color: AppColors.cream)),
+        Text('Value: ${entry['value'] ?? 'N/A'}',
+            style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
-        Text('Shift: ${entry['shift']}', style: const TextStyle(color: AppColors.cream)),
+        Text('Shift: ${entry['shift'] ?? 'N/A'}',
+            style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
-        Text('Date: ${entry['date']}', style: const TextStyle(color: AppColors.cream)),
+        Text('Date: ${entry['date'] ?? 'N/A'}',
+            style: const TextStyle(color: AppColors.cream)),
       ];
     }
   }
@@ -1207,106 +1184,39 @@ class _EtpLogState extends State<EtpLog> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.cream,
       appBar: const CustomAppBar(),
       drawer: const CustomDrawer(),
       body: Column(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildTabButton(0, 'Equipment'),
-              _buildTabButton(1, 'Chemical'),
-              _buildTabButton(2, 'Flow'),
-              _buildTabButton(3, 'Parameter'),
+          TabBar(
+            controller: _tabController,
+            labelColor: AppColors.darkblue,
+            unselectedLabelColor: AppColors.darkblue.withOpacity(0.5),
+            indicatorColor: AppColors.yellowochre,
+            tabs: const [
+              Tab(text: 'Equipment'),
+              Tab(text: 'Chemical'),
+              Tab(text: 'Flow'),
+              Tab(text: 'Parameter'),
             ],
           ),
-          const Divider(height: 1),
           Expanded(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: _buildLogList(),
-              ),
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildEquipmentLogList(),
+                _buildChemicalLogList(),
+                _buildFlowLogList(),
+                _buildParameterLogList(),
+              ],
             ),
           ),
         ],
       ),
-      floatingActionButton: (_userRole == 2)
-          ? null
-          : FloatingActionButton(
-              backgroundColor: AppColors.darkblue,
-              onPressed: _addNewEntry,
-              child: const Icon(Icons.add, color: AppColors.yellowochre),
-            ),
-    );
-  }
-
-  Widget _buildTabButton(int index, String text) {
-    return TextButton(
-      onPressed: () {
-        setState(() {
-          _selectedTab = index;
-          if (index == 0) {
-            _equipmentBloc.add(FetchEquipment());
-          } else if (index == 1) {
-            _chemicallogBloc.add(FetchChemicallog());
-          } else if (index == 2) {
-            _flowlogBloc.add(FetchFlowlog());
-          } else if (index == 3) {
-            _parameterlogBloc.add(FetchParameterlog());
-          }
-        });
-      },
-      style: TextButton.styleFrom(
-        backgroundColor:
-            _selectedTab == index ? AppColors.darkblue : Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: _selectedTab == index ? AppColors.cream : AppColors.darkblue,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    if (widget.equipmentBloc == null) {
-      _equipmentBloc.close();
-    }
-    if (widget.chemicallogBloc == null) {
-      _chemicallogBloc.close();
-    }
-    if (widget.flowlogBloc == null) {
-      _flowlogBloc.close();
-    }
-    if (widget.parameterlogBloc == null) {
-      _parameterlogBloc.close();
-    }
-    super.dispose();
-  }
-
-  Widget _buildEditButton(Map<String, dynamic> entry, Function() onEdit) {
-    // Only show edit button if user is not role_id 2
-    if (_userRole == 2) return const SizedBox.shrink();
-    
-    return Align(
-      alignment: Alignment.centerRight,
-      child: ElevatedButton.icon(
-        icon: const Icon(Icons.edit, size: 18),
-        label: const Text('Edit'),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.yellowochre,
-          foregroundColor: AppColors.darkblue,
-        ),
-        onPressed: onEdit,
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: AppColors.darkblue,
+        onPressed: _addNewEntry,
+        child: const Icon(Icons.add, color: AppColors.yellowochre),
       ),
     );
   }

@@ -61,6 +61,8 @@ class AppConfig{
   static const String graphDataFlow = '$baseUrl/api/v1/logs/graph-data/flow';
   static const String graphDataParam = '$baseUrl/api/v1/logs/graph-data/parameters';
 
+  // Plant Equipment
+  static const String fetchEquip = '$baseUrl/api/v1/plant-equipment/list';
 }
 class AppImages {
   static const String logo = 'assets/images/shootlogo.png';

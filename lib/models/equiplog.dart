@@ -140,6 +140,52 @@ final statusValue = rawStatus is int
     }
   }
 
+  Future<List<Map<String, dynamic>>> fetchPlantEquipments() async {
+    final token = await _getToken();
+    if (token == null) {
+      throw Exception('No authentication token found');
+    }
+    final prefs = await SharedPreferences.getInstance();
+    final plantId = prefs.getInt('plant_id');
+    if (plantId == null) {
+      throw Exception('No plant_id found in shared preferences');
+    }
+
+    try {
+      final response = await dio.get(
+        AppConfig.fetchEquip,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        if (data is List) {
+          return data.map((item) => {
+            'equipment_name': item['equipment_name'] ?? 'Unknown',
+            'plant_equipment_id': item['plant_equipment_id'],
+            'equipment_type': item['equipment_type'],
+          }).toList().cast<Map<String, dynamic>>();
+        } else if (data is Map) {
+          return [{
+            'equipment_name': data['equipment_name'] ?? 'Unknown',
+            'plant_equipment_id': data['plant_equipment_id'],
+            'equipment_type': data['equipment_type'],
+          }];
+        }
+        return [];
+      } else {
+        throw Exception('Failed to fetch equipment data: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      throw Exception('Network error: ${e.message}');
+    }
+  }
+
   int _mapStatusToInt(String status) {
     switch (status) {
       case 'OK':
