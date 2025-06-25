@@ -69,11 +69,9 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
 
   Future<void> _loadInitialData() async {    if (_selectedTab == 0) {
       _equipmentBloc.add(FetchEquipment());
-      await _fetchEquipmentList(); // Load equipment list for dropdown
-    } else if (_selectedTab == 1) {
-      _chemicallogBloc.add(FetchChemicallog());
-      await _fetchChemicalList(); // Load chemical list for dropdown
-      await _fetchChemicalList(); // Load chemical list for dropdown
+      await _fetchEquipmentList(); // Load equipment list for dropdown    } else if (_selectedTab == 1) {
+      await _fetchChemicalList(); // Load chemical list for dropdown first
+      _chemicallogBloc.add(FetchChemicallog()); // Then fetch chemical logs
     } else if (_selectedTab == 2) {
       _flowlogBloc.add(FetchFlowlog());    } else if (_selectedTab == 3) {
       _parameterlogBloc.add(FetchParameterlog());

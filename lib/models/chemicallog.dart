@@ -76,11 +76,10 @@ Future<Map<String, dynamic>> addChemicalLog(Map<String, dynamic> log) async {
   try {
     final response = await dio.post(
       AppConfig.chemicallogadd,
-      data: {
-        'plant_id': plantId,
+      data: {        'plant_id': plantId,
         'plant_chemical_id': int.parse(chemicalId.toString()),
-        'quantity_used': double.parse(quantityUsed.toString()),
-        'quantity_left': double.parse(quantityLeft.toString()),
+        'incomming_quantity':double.parse(quantityLeft.toString()),  // Map quantity_used to incomming_quantity
+        'quantity_used':double.parse(quantityUsed.toString()),
         'sludge_discharge': sludgeDischarge,
         'shift': int.parse(shift.toString()),
       },
@@ -91,7 +90,6 @@ Future<Map<String, dynamic>> addChemicalLog(Map<String, dynamic> log) async {
         },
       ),
     );
-
     if (response.statusCode == 201 || response.statusCode == 200) {
       return response.data;
     } else {
