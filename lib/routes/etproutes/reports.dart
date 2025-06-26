@@ -5,6 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:watershooters/config.dart';
+import 'package:equatable/equatable.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 // The URL should be replaced with your actual API endpoint
 
@@ -216,7 +219,7 @@ class FlowLog {
 // BLoC
 enum ReportStatus { initial, loading, success, failure }
 
-class ReportState {
+class ReportState extends Equatable {
   final ReportStatus status;
   final ReportData? reportData;
   final String? errorMessage;
@@ -246,23 +249,38 @@ class ReportState {
       endDate: endDate ?? this.endDate,
     );
   }
+
+  @override
+  List<Object?> get props => [status, reportData, errorMessage, startDate, endDate];
 }
 
-abstract class ReportEvent {}
+abstract class ReportEvent extends Equatable {
+  @override
+  List<Object?> get props => [];
+}
 
 class ReportDateSelected extends ReportEvent {
   final DateTime startDate;
   final DateTime endDate;
 
-  ReportDateSelected({required this.startDate, required this.endDate});
+  ReportDateSelected({
+    required this.startDate,
+    required this.endDate,
+  });
+
+  @override
+  List<Object?> get props => [startDate, endDate];
 }
 
 class ReportFetched extends ReportEvent {}
+
+class DownloadPdf extends ReportEvent {}
 
 class ReportBloc extends Bloc<ReportEvent, ReportState> {
   ReportBloc() : super(ReportState()) {
     on<ReportDateSelected>(_onDateSelected);
     on<ReportFetched>(_onReportFetched);
+    on<DownloadPdf>(_onDownloadPdf);
   }
 
   void _onDateSelected(ReportDateSelected event, Emitter<ReportState> emit) {
@@ -277,7 +295,6 @@ class ReportBloc extends Bloc<ReportEvent, ReportState> {
     return prefs.getString('token');
   }
 
-  
   Future<void> _onReportFetched(
       ReportFetched event, Emitter<ReportState> emit) async {
     if (state.startDate == null || state.endDate == null) {
@@ -345,6 +362,81 @@ class ReportBloc extends Bloc<ReportEvent, ReportState> {
       ));
     }
   }
+
+  Future<void> _onDownloadPdf(DownloadPdf event, Emitter<ReportState> emit) async {
+    if (state.startDate == null || state.endDate == null) {
+      emit(state.copyWith(
+        status: ReportStatus.failure,
+        errorMessage: 'Please select start and end dates',
+      ));
+      return;
+    }
+
+    emit(state.copyWith(status: ReportStatus.loading));
+
+    try {
+      // Get token
+      final token = await _getToken();
+      if (token == null) {
+        emit(state.copyWith(
+          status: ReportStatus.failure,
+          errorMessage: 'Authentication token not found',
+        ));
+        return;
+      }
+
+      // Get plant_id from SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final plantId = prefs.getInt('plant_id');
+      if (plantId == null) {
+        emit(state.copyWith(
+          status: ReportStatus.failure,
+          errorMessage: 'Plant ID not found',
+        ));
+        return;
+      }
+
+      final startDate = DateFormat('yyyy-MM-dd').format(state.startDate!);
+      final endDate = DateFormat('yyyy-MM-dd').format(state.endDate!);
+      
+      final url = Uri.parse('${AppConfig.pdf}?plant_id=$plantId&start_date=$startDate&end_date=$endDate');
+      
+      final response = await http.get(
+        url,
+        headers: <String, String>{
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        // Use url_launcher to open the PDF in browser or default PDF viewer
+        final String pdfUrl = url.toString();
+        if (await canLaunchUrl(Uri.parse(pdfUrl))) {
+          await launchUrl(Uri.parse(pdfUrl), mode: LaunchMode.externalApplication);
+          emit(state.copyWith(
+            status: ReportStatus.success,
+            errorMessage: null,
+          ));
+        } else {
+          emit(state.copyWith(
+            status: ReportStatus.failure,
+            errorMessage: 'Could not open PDF',
+          ));
+        }
+      } else {
+        emit(state.copyWith(
+          status: ReportStatus.failure,
+          errorMessage: 'Failed to download PDF: ${response.statusCode}',
+        ));
+      }
+    } catch (e) {
+      emit(state.copyWith(
+        status: ReportStatus.failure,
+        errorMessage: 'Error downloading PDF: ${e.toString()}',
+      ));
+    }
+  }
+
 }
 
 // UI Page
@@ -438,18 +530,39 @@ class _DateSelectionSection extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  context.read<ReportBloc>().add(ReportFetched());
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).primaryColor,
-                  foregroundColor: Colors.white,
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      context.read<ReportBloc>().add(ReportFetched());
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).primaryColor,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Generate Report'),
+                  ),
                 ),
-                child: const Text('Generate Report'),
-              ),
+                const SizedBox(width: 16),
+                ElevatedButton(
+                  onPressed: state.startDate != null && state.endDate != null
+                      ? () => context.read<ReportBloc>().add(DownloadPdf())
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.picture_as_pdf),
+                      SizedBox(width: 8),
+                      Text('Download PDF'),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ],
         ),
