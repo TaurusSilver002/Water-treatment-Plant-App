@@ -139,23 +139,40 @@ class _EtpState extends State<Etp> {
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text("Cancel")),
-            ElevatedButton(
-              onPressed: () {
-                _plantCreateBloc.add(SubmitPlant(
-                  PlantModel(
-                    plantName: nameCtrl.text,
-                    clientId: selectedClientIds,
-                    operatorId: selectedOperatorIds,
-                    plantTypeId: widget.plantTypeId,
-                    address: addressCtrl.text,
-                    plantCapacity: int.tryParse(capCtrl.text) ?? 0,
-                    hotelName: hotelCtrl.text,
-                    plantDescription: descCtrl.text,
-                    operationalStatus: true,
-                  ),
-                ));
-              },
-              child: const Text("Submit"),
+            BlocBuilder<PlantCreateBloc, PlantCreateState>(
+              bloc: _plantCreateBloc,
+              builder: (context, state) {
+                final isLoading = state is PlantCreateLoading;
+                return ElevatedButton(
+                  onPressed: isLoading 
+                    ? null 
+                    : () {
+                        _plantCreateBloc.add(SubmitPlant(
+                          PlantModel(
+                            plantName: nameCtrl.text,
+                            clientId: selectedClientIds,
+                            operatorId: selectedOperatorIds,
+                            plantTypeId: widget.plantTypeId,
+                            address: addressCtrl.text,
+                            plantCapacity: int.tryParse(capCtrl.text) ?? 0,
+                            hotelName: hotelCtrl.text,
+                            plantDescription: descCtrl.text,
+                            operationalStatus: true,
+                          ),
+                        ));
+                      },
+                  child: isLoading 
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Text("Submit"),
+                );
+              }
             ),
           ],
         ),
