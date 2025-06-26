@@ -68,7 +68,7 @@ class ChemicalLogRepository {
 
     final chemicalId = log['plant_chemical_id'];
     final quantityUsed = log['quantity_used'];
-    final quantityLeft = log['quantity_left'];
+    final quantityLeft = log['incomming_quantity'];
     final sludgeDischarge = log['sludge_discharge'];
     final shift = log['shift'];
 
@@ -115,7 +115,7 @@ class ChemicalLogRepository {
       'chemical_log_id': chemicalLogId,
     };
     if (quantityUsed != null) data['quantity_used'] = quantityUsed;
-    if (quantityLeft != null) data['quantity_left'] = quantityLeft;
+    if (quantityLeft != null) data['incomming_quantity'] = quantityLeft;
     if (sludgeDischarge != null) data['sludge_discharge'] = sludgeDischarge;
     if (shift != null) data['shift'] = shift;
     try {

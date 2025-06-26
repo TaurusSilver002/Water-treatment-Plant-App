@@ -329,7 +329,7 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
                         onChanged: (val) => setState(() => selectedQuantityUsed = val),
                       ),
                       TextField(
-                        decoration: const InputDecoration(labelText: 'Quantity Left'),
+                        decoration: const InputDecoration(labelText: 'Incoming Quantity'),
                         keyboardType: TextInputType.number,
                         onChanged: (val) => setState(() => selectedQuantityLeft = val),
                       ),
@@ -473,14 +473,14 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
                         return;
                       }
                       if (selectedQuantityUsed.isEmpty || selectedQuantityLeft.isEmpty) {
-                        setState(() => errorText = 'Please enter both quantity used and quantity left.');
+                        setState(() => errorText = 'Please enter both quantity used and incoming quantity.');
                         return;
                       }
                       final entry = {
                         'plant_id': plantId,
                         'plant_chemical_id': selectedChemicalId,
                         'quantity_used': selectedQuantityUsed,
-                        'quantity_left': selectedQuantityLeft,
+                        'incomming_quantity': selectedQuantityLeft,
                         'sludge_discharge': selectedSludgeDischarge,
                         'shift': selectedChemicalShift,
                       };
@@ -1235,10 +1235,10 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
                       onChanged: (val) => setState(() => entry['quantity_used'] = val),
                     ),
                     TextFormField(
-                      initialValue: entry['quantity_left'],
+                      initialValue: entry['incomming_quantity'],
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Quantity Left'),
-                      onChanged: (val) => setState(() => entry['quantity_left'] = val),
+                      decoration: const InputDecoration(labelText: 'Incoming Quantity'),
+                      onChanged: (val) => setState(() => entry['incomming_quantity'] = val),
                     ),
                     SwitchListTile(
                       title: const Text('Sludge Discharge'),
@@ -1323,7 +1323,7 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
                           await ChemicalLogRepository().editChemicalLog(
                             chemicalLogId: chemicalLogId,
                             quantityUsed: double.tryParse(entry['quantity_used'] ?? '') ?? 0,
-                            quantityLeft: double.tryParse(entry['quantity_left'] ?? '') ?? 0,
+                            quantityLeft: double.tryParse(entry['incomming_quantity'] ?? '') ?? 0,
                             sludgeDischarge: (entry['sludge_discharge'] == 'true'),
                             shift: shiftVal,
                           );
@@ -1398,7 +1398,7 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
     return {
       'chemical_log_id': log['chemical_log_id']?.toString() ?? '',
       'name': chemical['name'] as String,
-      'quantity_left': log['quantity_left']?.toString() ?? 'N/A',
+      'incomming_quantity': log['incomming_quantity']?.toString() ?? 'N/A',
       'quantity_used': log['quantity_used']?.toString() ?? 'N/A',
       'sludge_discharge': (log['sludge_discharge'] == true) ? 'true' : 'false',
       'shift': (log['shift'] != null) ? log['shift'].toString() : 'N/A',
@@ -1491,7 +1491,7 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
       ];
     } else if (_selectedTab == 1) {
       return [
-        Text('Quantity Left: ${entry['quantity_left']}', style: const TextStyle(color: AppColors.cream)),
+        Text('Incoming Quantity: ${entry['incomming_quantity']}', style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
         Text('Quantity Used: ${entry['quantity_used']}', style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
