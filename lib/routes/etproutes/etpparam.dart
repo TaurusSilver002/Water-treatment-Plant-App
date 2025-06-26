@@ -31,6 +31,7 @@ class _EtpParamState extends State<EtpParam> {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _userRole = prefs.getInt('role');
+      print('User role: $_userRole'); // Debug print
     });
   }
 
@@ -53,6 +54,7 @@ class _EtpParamState extends State<EtpParam> {
         'updated_at': item['updated_at']?.toString() ?? 'N/A',
         'del_flag': item['del_flag']?.toString() ?? 'N/A',
       }).toList();
+      print('Parameters updated: ${paramData.length} items'); // Debug print
     });
   }
 
@@ -123,6 +125,10 @@ class _EtpParamState extends State<EtpParam> {
                         SnackBar(content: Text('Failed to add parameter: $e')),
                       );
                     }
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Please fill all fields')),
+                    );
                   }
                 },
                 child: const Text('Add'),
@@ -132,6 +138,87 @@ class _EtpParamState extends State<EtpParam> {
         },
       ),
     );
+  }
+
+  void _deleteParameter(String plantFlowParameterId, String parameterName) async {
+    final paramId = int.tryParse(plantFlowParameterId);
+    if (paramId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Invalid parameter ID'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Parameter'),
+        content: Text('Are you sure you want to delete "$parameterName"? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    try {
+      final repository = PlantParamRepository();
+      final success = await repository.deleteparam(paramId);
+
+      // Hide loading indicator
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      if (!mounted) return;
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Parameter deleted successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _plantparamBloc.add(FetchPlantparam());
+      } else {
+        throw Exception('Failed to delete parameter');
+      }
+    } catch (e) {
+      // Hide loading indicator if still showing
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error deleting parameter: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -180,7 +267,7 @@ class _EtpParamState extends State<EtpParam> {
                             ),
                             children: [
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -200,6 +287,20 @@ class _EtpParamState extends State<EtpParam> {
                                     const SizedBox(height: 8),
                                     Text('Deleted Flag: ${item['del_flag']}', style: const TextStyle(color: AppColors.cream)),
                                     const SizedBox(height: 16),
+                                    if (_userRole == 1) ...[
+                                      Align(
+                                        alignment: Alignment.centerRight,
+                                        child: ElevatedButton.icon(
+                                          icon: const Icon(Icons.delete, size: 18),
+                                          label: const Text('Delete'),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.red,
+                                            foregroundColor: Colors.white,
+                                          ),
+                                          onPressed: () => _deleteParameter(item['plant_flow_parameter_id']!, item['name']!),
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),
