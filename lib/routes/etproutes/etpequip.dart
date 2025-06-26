@@ -31,6 +31,7 @@ class _EtpEquipState extends State<EtpEquip> {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _userRole = prefs.getInt('role');
+      print('User role: $_userRole'); // Debug print
     });
   }
 
@@ -53,6 +54,7 @@ class _EtpEquipState extends State<EtpEquip> {
         'updated_at': item['updated_at']?.toString() ?? 'N/A',
         'del_flag': item['del_flag']?.toString() ?? 'N/A',
       }).toList();
+      print('Equipment updated: ${etpData.length} items'); // Debug print
     });
   }
 
@@ -149,9 +151,117 @@ class _EtpEquipState extends State<EtpEquip> {
                         SnackBar(content: Text('Failed to add equipment: $e')),
                       );
                     }
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Please fill all required fields')),
+                    );
                   }
                 },
                 child: const Text('Add'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _editEquipment(String plantEquipmentId, String equipmentName, String equipmentType, String maintenance, String status) async {
+    final equipId = int.tryParse(plantEquipmentId);
+    if (equipId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Invalid equipment ID'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    print('Editing equipment ID: $equipId'); // Debug print
+
+    final TextEditingController nameController = TextEditingController(text: equipmentName);
+    final TextEditingController typeController = TextEditingController(text: equipmentType);
+    final TextEditingController maintenanceController = TextEditingController(text: maintenance == 'N/A' ? '' : maintenance);
+    String selectedStatus = status;
+    final statusMap = {'OK': 0, 'Warning': 1, 'Critical': 2};
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('Edit Equipment'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Equipment Name'),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: typeController,
+                  decoration: const InputDecoration(labelText: 'Equipment Type'),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: maintenanceController,
+                  decoration: const InputDecoration(labelText: 'Last Maintenance (optional)'),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: selectedStatus,
+                  items: ['OK', 'Warning', 'Critical']
+                      .map((status) => DropdownMenuItem(
+                            value: status,
+                            child: Text(status),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      selectedStatus = value!;
+                    });
+                  },
+                  decoration: const InputDecoration(labelText: 'Status'),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  if (nameController.text.isNotEmpty && typeController.text.isNotEmpty) {
+                    try {
+                      print('Sending edit payload: plant_equipment_id: $equipId, equipment_name: ${nameController.text}, equipment_type: ${typeController.text}, last_maintenance: ${maintenanceController.text}, status: ${statusMap[selectedStatus]}'); // Debug print
+                      await PlantEquipRepository().editequipment(
+                        plant_equipment_id: equipId,
+                        equipment_name: nameController.text,
+                        equipment_type: typeController.text,
+                        last_maintenance: maintenanceController.text.isNotEmpty ? maintenanceController.text : null,
+                        status: statusMap[selectedStatus] ?? 0,
+                      );
+                      _plantequipBloc.add(FetchPlantequip());
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Equipment updated successfully')),
+                      );
+                    } catch (e) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Failed to edit equipment: $e')),
+                      );
+                    }
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Please fill all required fields')),
+                    );
+                  }
+                },
+                child: const Text('Save'),
               ),
             ],
           );
@@ -171,6 +281,8 @@ class _EtpEquipState extends State<EtpEquip> {
       );
       return;
     }
+
+    print('Deleting equipment ID: $equipId'); // Debug print
 
     final confirm = await showDialog<bool>(
       context: context,
@@ -265,12 +377,16 @@ class _EtpEquipState extends State<EtpEquip> {
                     } else if (state is PlantequipError) {
                       return Center(child: Text('Error: ${state.message}'));
                     }
+                    if (etpData.isEmpty) {
+                      return const Center(child: Text('No equipment available'));
+                    }
                     return ListView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: etpData.length,
                       itemBuilder: (context, index) {
                         final item = etpData[index];
+                        print('Rendering equipment: ${item['name']}, ID: ${item['plant_equipment_id']}'); // Debug print
                         return Card(
                           color: AppColors.lightblue,
                           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -315,17 +431,38 @@ class _EtpEquipState extends State<EtpEquip> {
                                     Text('Deleted Flag: ${item['del_flag']}', style: const TextStyle(color: AppColors.cream)),
                                     const SizedBox(height: 16),
                                     if (_userRole == 1) ...[
-                                      Align(
-                                        alignment: Alignment.centerRight,
-                                        child: ElevatedButton.icon(
-                                          icon: const Icon(Icons.delete, size: 18),
-                                          label: const Text('Delete'),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.red,
-                                            foregroundColor: Colors.white,
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.end,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          ElevatedButton.icon(
+                                            icon: const Icon(Icons.edit, size: 18),
+                                            label: const Text('Edit'),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: AppColors.darkblue,
+                                              foregroundColor: Colors.white,
+                                              minimumSize: const Size(100, 36),
+                                            ),
+                                            onPressed: () => _editEquipment(
+                                              item['plant_equipment_id']!,
+                                              item['name']!,
+                                              item['equipment_type']!,
+                                              item['maintenance']!,
+                                              item['status']!,
+                                            ),
                                           ),
-                                          onPressed: () => _deleteEquipment(item['plant_equipment_id']!, item['name']!),
-                                        ),
+                                          const SizedBox(width: 8),
+                                          ElevatedButton.icon(
+                                            icon: const Icon(Icons.delete, size: 18),
+                                            label: const Text('Delete'),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.red,
+                                              foregroundColor: Colors.white,
+                                              minimumSize: const Size(100, 36),
+                                            ),
+                                            onPressed: () => _deleteEquipment(item['plant_equipment_id']!, item['name']!),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ],
