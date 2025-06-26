@@ -52,15 +52,15 @@ class _DashboardState extends State<Dashboard> {
                 color: AppColors.darkblue,
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: const Column(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Welcome.',
+                  const Text('Welcome.',
                       style: TextStyle(
                           color: AppColors.cream,
                           fontSize: 20,
                           fontWeight: FontWeight.bold)),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
                   Text(
                       'Welcome to Water Shooters by DOVER TECHNOLOGIES your ultimate destination fortop-tier troubleshooting solutions tailored for your STP ETP AND WTP needs',
                       style: TextStyle(color: AppColors.cream, fontSize: 12)),

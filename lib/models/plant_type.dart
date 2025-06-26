@@ -71,13 +71,15 @@ Future<List<Map<String, dynamic>>> fetchAllPlants() async {
 }
 
 class PlantModel {
-  final int clientId;
-  final int operatorId;
+  final List<int> clientId;
+  final List<int> operatorId;
   final int plantTypeId;
   final String plantName;
   final String address;
   final int plantCapacity;
   final bool operationalStatus;
+  final String plantDescription;
+  final String hotelName;
 
   PlantModel({
     required this.clientId,
@@ -87,6 +89,8 @@ class PlantModel {
     required this.address,
     required this.plantCapacity,
     required this.operationalStatus,
+    required this.plantDescription,
+    required this.hotelName,
   });
 
   Map<String, dynamic> toJson() => {
@@ -97,9 +101,10 @@ class PlantModel {
         'address': address,
         'plant_capacity': plantCapacity,
         'operational_status': operationalStatus,
+        'plant_description': plantDescription,
+        'hotel_name': hotelName,
       };
 }
-
 class PlantRepository {
   final Dio _dio;
 PlantRepository(this._dio);
