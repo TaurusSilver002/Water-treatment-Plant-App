@@ -31,6 +31,7 @@ class _EtpChemicalState extends State<EtpChemical> {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _userRole = prefs.getInt('role_id');
+      print('User role: $_userRole'); // Debug print
     });
   }
 
@@ -52,6 +53,7 @@ class _EtpChemicalState extends State<EtpChemical> {
         'created_at': item['created_at']?.toString() ?? 'N/A',
         'del_flag': item['del_flag']?.toString() ?? 'N/A',
       }).toList();
+      print('Chemicals updated: ${chemicals.length} items'); // Debug print
     });
   }
 
@@ -109,6 +111,10 @@ class _EtpChemicalState extends State<EtpChemical> {
                       SnackBar(content: Text('Failed to add chemical: $e')),
                     );
                   }
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please fill all fields')),
+                  );
                 }
               },
               child: const Text('Add'),
@@ -117,6 +123,87 @@ class _EtpChemicalState extends State<EtpChemical> {
         );
       },
     );
+  }
+
+  void _deleteChemical(String plantChemicalId, String chemicalName) async {
+    final chemId = int.tryParse(plantChemicalId);
+    if (chemId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Invalid chemical ID'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Chemical'),
+        content: Text('Are you sure you want to delete "$chemicalName"? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    try {
+      final repository = PlantChemRepository();
+      final success = await repository.deletechemical(chemId);
+
+      // Hide loading indicator
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      if (!mounted) return;
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Chemical deleted successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _plantchemBloc.add(FetchPlantchem());
+      } else {
+        throw Exception('Failed to delete chemical');
+      }
+    } catch (e) {
+      // Hide loading indicator if still showing
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error deleting chemical: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -182,6 +269,21 @@ class _EtpChemicalState extends State<EtpChemical> {
                                       Text('Plant ID: ${chemical['plant_id']}', style: const TextStyle(color: AppColors.cream)),
                                       Text('Created At: ${chemical['created_at']}', style: const TextStyle(color: AppColors.cream)),
                                       Text('Deleted Flag: ${chemical['del_flag']}', style: const TextStyle(color: AppColors.cream)),
+                                      const SizedBox(height: 12),
+                                      if (_userRole == 1) ...[
+                                        Align(
+                                          alignment: Alignment.centerRight,
+                                          child: ElevatedButton.icon(
+                                            icon: const Icon(Icons.delete, size: 18),
+                                            label: const Text('Delete'),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.red,
+                                              foregroundColor: Colors.white,
+                                            ),
+                                            onPressed: () => _deleteChemical(chemical['plant_chemical_id']!, chemical['compound']!),
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ),
                                 ),

@@ -5,6 +5,10 @@ import 'package:watershooters/config.dart';
 class PlantChemRepository {
   final Dio dio;
   PlantChemRepository({Dio? dio}) : dio = dio ?? Dio();
+   Future<String?> _getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('token');
+  }
 
   Future<List<Map<String, dynamic>>> fetchPlantChemicals() async {
     final prefs = await SharedPreferences.getInstance();
@@ -82,4 +86,31 @@ class PlantChemRepository {
       throw Exception('Network error: ${e.message}');
     }
   }
+        Future<bool> deletechemical(int chemicalId) async {
+    final token = await _getToken();
+    if (token == null) {
+      throw Exception('No authentication token found');
+    }
+
+    try {
+      final response = await dio.delete(
+        '${AppConfig.plantchemdelete}/$chemicalId',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        throw Exception('Failed to delete chemical log: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      throw Exception('Network error: ${e.message}');
+    }
+  }
+
 }

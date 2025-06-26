@@ -166,6 +166,7 @@ class ChemicalLogRepository {
     }
   }
 
+
   int _mapStatusToInt(String status) {
     switch (status) {
       case 'OK':
