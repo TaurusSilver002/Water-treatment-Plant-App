@@ -160,6 +160,87 @@ class _EtpEquipState extends State<EtpEquip> {
     );
   }
 
+  void _deleteEquipment(String plantEquipmentId, String equipmentName) async {
+    final equipId = int.tryParse(plantEquipmentId);
+    if (equipId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Invalid equipment ID'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Equipment'),
+        content: Text('Are you sure you want to delete "$equipmentName"? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    try {
+      final repository = PlantEquipRepository();
+      final success = await repository.deleteEquip(equipId);
+
+      // Hide loading indicator
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      if (!mounted) return;
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Equipment deleted successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _plantequipBloc.add(FetchPlantequip());
+      } else {
+        throw Exception('Failed to delete equipment');
+      }
+    } catch (e) {
+      // Hide loading indicator if still showing
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error deleting equipment: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocProvider.value(
@@ -213,7 +294,7 @@ class _EtpEquipState extends State<EtpEquip> {
                             ),
                             children: [
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -233,6 +314,20 @@ class _EtpEquipState extends State<EtpEquip> {
                                     const SizedBox(height: 8),
                                     Text('Deleted Flag: ${item['del_flag']}', style: const TextStyle(color: AppColors.cream)),
                                     const SizedBox(height: 16),
+                                    if (_userRole == 1) ...[
+                                      Align(
+                                        alignment: Alignment.centerRight,
+                                        child: ElevatedButton.icon(
+                                          icon: const Icon(Icons.delete, size: 18),
+                                          label: const Text('Delete'),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.red,
+                                            foregroundColor: Colors.white,
+                                          ),
+                                          onPressed: () => _deleteEquipment(item['plant_equipment_id']!, item['name']!),
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),

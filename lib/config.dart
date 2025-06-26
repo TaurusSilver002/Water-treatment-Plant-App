@@ -60,6 +60,10 @@ class AppConfig{
   static const String plantchemadd = '$baseUrl/plant-chemical/create';
   static const String plantparam = '$baseUrl/plant-flow-parameter/plant';
   static const String plantparamadd = '$baseUrl/plant-flow-parameter/create';
+  //delete functions
+  static const String plantequipdelete = '$baseUrl/plant-equipment/';
+  static const String plantchemdelete = '$baseUrl/plant-chemical/'; 
+  static const String plantparamdelete = '$baseUrl/plant-flow-parameter/';
   //graph
   static const String graphDataEquip = '$baseUrl/api/v1/logs/graph-data/equipment';
   static const String graphDataChemUsed = '$baseUrl/api/v1/logs/graph-data/chemical/used';
