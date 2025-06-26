@@ -67,13 +67,16 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
     super.dispose();
   }
 
-  Future<void> _loadInitialData() async {    if (_selectedTab == 0) {
+  Future<void> _loadInitialData() async {
+    if (_selectedTab == 0) {
       _equipmentBloc.add(FetchEquipment());
-      await _fetchEquipmentList(); // Load equipment list for dropdown    } else if (_selectedTab == 1) {
+      await _fetchEquipmentList(); // Load equipment list for dropdown
+    } else if (_selectedTab == 1) {
       await _fetchChemicalList(); // Load chemical list for dropdown first
       _chemicallogBloc.add(FetchChemicallog()); // Then fetch chemical logs
     } else if (_selectedTab == 2) {
-      _flowlogBloc.add(FetchFlowlog());    } else if (_selectedTab == 3) {
+      _flowlogBloc.add(FetchFlowlog());
+    } else if (_selectedTab == 3) {
       _parameterlogBloc.add(FetchParameterlog());
       await _fetchParameterList(); // Load parameter list for dropdown
     }
@@ -85,7 +88,7 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
       _userRole = prefs.getInt('role_id');
     });
   }
-  
+
   void _handleTabChange() {
     if (_tabController.index != _selectedTab) {
       setState(() {
@@ -93,7 +96,9 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
       });
       _loadInitialData();
     }
-  }  Future<void> _fetchEquipmentList() async {
+  }
+
+  Future<void> _fetchEquipmentList() async {
     try {
       final repo = PlantEquipRepository();
       final response = await repo.fetchPlantEquipments();
@@ -136,6 +141,7 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
       }
     }
   }
+
   Future<void> _fetchParameterList() async {
     try {
       final repo = PlantParamRepository();
@@ -183,7 +189,8 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
         int selectedFlowShift = 1;
         String? errorText;
         // --- Parameter log fields ---
-        int selectedParameterId = 0;        String selectedParameterValue = '';
+        int selectedParameterId = 0;
+        String selectedParameterValue = '';
         int selectedParameterShift = 1;
 
         Future<void> pickImage(bool isInlet) async {
@@ -246,7 +253,9 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  children: [                    if (_selectedTab == 0) ...[                      DropdownButtonFormField<int>(
+                  children: [
+                    if (_selectedTab == 0) ...[
+                      DropdownButtonFormField<int>(
                         value: selectedEquipmentId,
                         items: [
                           const DropdownMenuItem(value: 0, child: Text('Select Equipment')),
@@ -293,7 +302,8 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
                         ],
                         onChanged: (val) => setState(() => selectedShift = val ?? 1),
                         decoration: const InputDecoration(labelText: 'Shift'),
-                      ),                    ] else if (_selectedTab == 1) ...[
+                      ),
+                    ] else if (_selectedTab == 1) ...[
                       DropdownButtonFormField<int>(
                         value: selectedChemicalId,
                         items: [
@@ -332,7 +342,7 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
                         value: selectedChemicalShift,
                         items: const [
                           DropdownMenuItem(value: 1, child: Text('1')),
-                          DropdownMenuItem(value: 2, child: Text('2')),
+                          DropdownMenuItem(value: 2, child: Text('3')),
                           DropdownMenuItem(value: 3, child: Text('3')),
                         ],
                         onChanged: (val) => setState(() => selectedChemicalShift = val ?? 1),
@@ -378,7 +388,8 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
                         ],
                         onChanged: (val) => setState(() => selectedFlowShift = val ?? 1),
                         decoration: const InputDecoration(labelText: 'Shift'),
-                      ),                    ] else if (_selectedTab == 3) ...[
+                      ),
+                    ] else if (_selectedTab == 3) ...[
                       DropdownButtonFormField<int>(
                         value: selectedParameterId,
                         items: [
@@ -400,7 +411,8 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
                           labelText: 'Parameter',
                           hintText: 'Select Parameter',
                         ),
-                      ),                      TextField(
+                      ),
+                      TextField(
                         decoration: const InputDecoration(labelText: 'Inlet Value'),
                         keyboardType: TextInputType.number,
                         onChanged: (val) => setState(() => selectedParameterValue = val),
@@ -455,7 +467,8 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Equipment log added')),
                       );
-                    } else if (_selectedTab == 1) {                      if (selectedChemicalId <= 0) {
+                    } else if (_selectedTab == 1) {
+                      if (selectedChemicalId <= 0) {
                         setState(() => errorText = 'Please select a chemical.');
                         return;
                       }
@@ -494,17 +507,20 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Flow log added')),
                       );
-                    } else if (_selectedTab == 3) {                      if (selectedParameterId <= 0) {
+                    } else if (_selectedTab == 3) {
+                      if (selectedParameterId <= 0) {
                         setState(() => errorText = 'Please select a parameter.');
                         return;
-                      }                      if (selectedParameterValue.isEmpty) {
+                      }
+                      if (selectedParameterValue.isEmpty) {
                         setState(() => errorText = 'Please enter an inlet value for the parameter.');
                         return;
                       }
                       if (selectedOutletValue.isEmpty) {
                         setState(() => errorText = 'Please enter an outlet value for the parameter.');
                         return;
-                      }                      final entry = {
+                      }
+                      final entry = {
                         'plant_id': plantId,
                         'plant_flow_parameter_id': selectedParameterId,
                         'value': selectedParameterValue,
@@ -571,14 +587,14 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
           return const Center(child: CircularProgressIndicator());
         } else if (state is EquipmentLoaded) {
           final equipmentLogs = (state.equipmentData['logs'] as List<dynamic>?)
-            ?.map((log) => _mapBackendLogToEntry(log))
-            .toList() ?? [];
+              ?.map((log) => _mapBackendLogToEntry(log))
+              .toList() ?? [];
           if (equipmentLogs.isEmpty) {
             return const Center(child: Text('No equipment logs available'));
           }
           return ListView.builder(
             shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
+            physics: const AlwaysScrollableScrollPhysics(),
             itemCount: equipmentLogs.length,
             itemBuilder: (context, index) {
               final entry = equipmentLogs[index];
@@ -603,7 +619,7 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
       },
     );
   }
-  
+
   Widget _buildChemicalLogList() {
     return BlocBuilder<ChemicallogBloc, ChemicallogState>(
       bloc: _chemicallogBloc,
@@ -612,14 +628,14 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
           return const Center(child: CircularProgressIndicator());
         } else if (state is ChemicallogLoaded) {
           final chemicalLogs = (state.chemicallogData['logs'] as List<dynamic>?)
-            ?.map((log) => _mapBackendChemicalLogToEntry(log))
-            .toList() ?? [];
+              ?.map((log) => _mapBackendChemicalLogToEntry(log))
+              .toList() ?? [];
           if (chemicalLogs.isEmpty) {
             return const Center(child: Text('No chemical logs available'));
           }
           return ListView.builder(
             shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
+            physics: const AlwaysScrollableScrollPhysics(),
             itemCount: chemicalLogs.length,
             itemBuilder: (context, index) {
               final entry = chemicalLogs[index];
@@ -653,15 +669,15 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
           return const Center(child: CircularProgressIndicator());
         } else if (state is FlowlogLoaded) {
           final flowLogs = (state.flowlogData['logs'] as List<dynamic>?)
-            ?.map((log) => _mapBackendFlowLogToEntry(log))
-            .where((entry) => entry.isNotEmpty)
-            .toList() ?? [];
+              ?.map((log) => _mapBackendFlowLogToEntry(log))
+              .where((entry) => entry.isNotEmpty)
+              .toList() ?? [];
           if (flowLogs.isEmpty) {
             return const Center(child: Text('No flow logs available'));
           }
           return ListView.builder(
             shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
+            physics: const AlwaysScrollableScrollPhysics(),
             itemCount: flowLogs.length,
             itemBuilder: (context, index) {
               final entry = flowLogs[index];
@@ -695,14 +711,14 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
           return const Center(child: CircularProgressIndicator());
         } else if (state is ParameterlogLoaded) {
           final parameterLogs = (state.parameterlogData['logs'] as List<dynamic>?)
-            ?.map((log) => _mapBackendParameterLogToEntry(log))
-            .toList() ?? [];
+              ?.map((log) => _mapBackendParameterLogToEntry(log))
+              .toList() ?? [];
           if (parameterLogs.isEmpty) {
             return const Center(child: Text('No parameter logs available'));
           }
           return ListView.builder(
             shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
+            physics: const AlwaysScrollableScrollPhysics(),
             itemCount: parameterLogs.length,
             itemBuilder: (context, index) {
               final entry = parameterLogs[index];
@@ -757,19 +773,210 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
   }
 
   Widget _buildEditButton(Map<String, String> entry) {
-    // Only show edit button if user is not role_id 2
+    // Only show buttons if user is not role_id 2
     if (_userRole == 2) return const SizedBox.shrink();
-    
+
     return Align(
       alignment: Alignment.centerRight,
-      child: ElevatedButton.icon(
-        icon: const Icon(Icons.edit, size: 18),
-        label: const Text('Edit'),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.yellowochre,
-          foregroundColor: AppColors.darkblue,
-        ),
-        onPressed: () => _showEditDialog(entry),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ElevatedButton.icon(
+            icon: const Icon(Icons.edit, size: 18),
+            label: const Text('Edit'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.yellowochre,
+              foregroundColor: AppColors.darkblue,
+            ),
+            onPressed: () => _showEditDialog(entry),
+          ),
+          if (_selectedTab == 0) ...[
+            const SizedBox(width: 8),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.delete, size: 18),
+              label: const Text('Delete'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                final logId = int.tryParse(entry['equipment_log_id'] ?? '');
+                if (logId == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Invalid equipment log ID'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Delete Equipment Log'),
+                    content: const Text('Are you sure you want to delete this equipment log? This action cannot be undone.'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        style: TextButton.styleFrom(foregroundColor: Colors.red),
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Delete'),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirm != true) return;
+
+                // Show loading indicator
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) => const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+
+                try {
+                  // Call delete method
+                  final repository = EquipmentRepository();
+                  final success = await repository.deleteEquipmentLog(logId);
+
+                  // Hide loading indicator
+                  if (mounted && Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  }
+
+                  if (!mounted) return;
+
+                  if (success) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Equipment log deleted successfully'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                    // Refresh equipment logs
+                    _equipmentBloc.add(FetchEquipment());
+                  } else {
+                    throw Exception('Failed to delete equipment log');
+                  }
+                } catch (e) {
+                  // Hide loading indicator if it's still showing
+                  if (mounted && Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  }
+
+                  if (!mounted) return;
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error deleting equipment log: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+            ),
+          ],
+          if (_selectedTab == 1) ...[
+            const SizedBox(width: 8),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.delete, size: 18),
+              label: const Text('Delete'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                final logId = int.tryParse(entry['chemical_log_id'] ?? '');
+                if (logId == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Invalid chemical log ID'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Delete Chemical Log'),
+                    content: const Text('Are you sure you want to delete this chemical log? This action cannot be undone.'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        style: TextButton.styleFrom(foregroundColor: Colors.red),
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Delete'),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirm != true) return;
+
+                // Show loading indicator
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) => const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+
+                try {
+                  // Call delete method
+                  final repository = ChemicalLogRepository();
+                  final success = await repository.deleteChemicalLog(logId);
+
+                  // Hide loading indicator
+                  if (mounted && Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  }
+
+                  if (!mounted) return;
+
+                  if (success) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Chemical log deleted successfully'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                    // Refresh chemical logs
+                    _chemicallogBloc.add(FetchChemicallog());
+                  } else {
+                    throw Exception('Failed to delete chemical log');
+                  }
+                } catch (e) {
+                  // Hide loading indicator if it's still showing
+                  if (mounted && Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  }
+
+                  if (!mounted) return;
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error deleting chemical log: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -913,7 +1120,7 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
                           _equipmentBloc.add(FetchEquipment());
                         }
                       } else if (_selectedTab == 1) {
-                        final chemicalLogId = _extractChemicalLogId(entry['name'] ?? '');
+                        final chemicalLogId = int.tryParse(entry['chemical_log_id'] ?? '');
                         if (chemicalLogId != null) {
                           await ChemicalLogRepository().editChemicalLog(
                             chemicalLogId: chemicalLogId,
@@ -964,18 +1171,24 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
           },
         );
       },
-    );  }  Map<String, String> _mapBackendLogToEntry(dynamic log) {
-  print('Mapping equipment log: $log');
-  final name = log['equipment_name'] ?? 'Equipment ${log['equipment_log_id'] ?? 'Unknown'}';
-  return {
-    'name': name,
-    'plant_equipment_id': log['plant_equipment_id']?.toString() ?? 'N/A',
-    'status': _mapStatus(log['equipment_status'] ?? 0),
-    'maintenance': (log['maintenance_done'] == true) ? 'Done' : 'Not Done',
-    'shift': log['shift']?.toString() ?? 'N/A',
-    'date': _formatDate(log['created_at'] ?? log['start_date'] ?? ''),
-  };
-}
+    );
+  }
+
+  Map<String, String> _mapBackendLogToEntry(dynamic log) {
+    print('Mapping equipment log: $log');
+    final equipLogId = log['equipment_log_id']?.toString() ?? '';
+    final name = log['equipment_name'] ?? 'Equipment $equipLogId';
+    return {
+      'equipment_log_id': equipLogId,
+      'name': name,
+      'plant_equipment_id': log['plant_equipment_id']?.toString() ?? 'N/A',
+      'status': _mapStatus(log['equipment_status'] ?? 0),
+      'maintenance': (log['maintenance_done'] == true) ? 'Done' : 'Not Done',
+      'shift': log['shift']?.toString() ?? 'N/A',
+      'date': _formatDate(log['created_at'] ?? log['start_date'] ?? ''),
+    };
+  }
+
   Map<String, String> _mapBackendChemicalLogToEntry(dynamic log) {
     final createdAt = log['created_at'];
     // Find the matching chemical from _chemicalList to get the name
@@ -985,6 +1198,7 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
       orElse: () => {'name': 'Chemical ${log['chemical_log_id'] ?? ''}'},
     );
     return {
+      'chemical_log_id': log['chemical_log_id']?.toString() ?? '',
       'name': chemical['name'] as String,
       'quantity_left': log['quantity_left']?.toString() ?? 'N/A',
       'quantity_used': log['quantity_used']?.toString() ?? 'N/A',
@@ -993,6 +1207,7 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
       'date': createdAt != null ? _formatDate(createdAt) : 'N/A',
     };
   }
+
   Map<String, String> _mapBackendFlowLogToEntry(dynamic log) {
     if (log['del_flag'] == true) {
       return {};
@@ -1007,7 +1222,9 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
       'inlet_image': log['inlet_image']?.toString() ?? 'N/A',
       'outlet_image': log['outlet_image']?.toString() ?? 'N/A',
     };
-  }  Map<String, String> _mapBackendParameterLogToEntry(dynamic log) {
+  }
+
+  Map<String, String> _mapBackendParameterLogToEntry(dynamic log) {
     final createdAt = log['created_at'];
     final paramId = log['plant_flow_parameter_id'];
     final param = _parameterList.firstWhere(
@@ -1015,7 +1232,8 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
       orElse: () => {'name': 'Parameter ${log['flow_parameter_log_id'] ?? ''}', 'unit': ''},
     );
     final unit = param['unit'] as String? ?? '';
-    return {      'name': param['name'] as String,
+    return {
+      'name': param['name'] as String,
       'value': '${log['inlet_value']?.toString() ?? 'N/A'}${unit.isNotEmpty ? ' $unit' : ''}',
       'outlet_value': '${log['outlet_value']?.toString() ?? 'N/A'}${unit.isNotEmpty ? ' $unit' : ''}',
       'shift': (log['shift'] != null) ? log['shift'].toString() : 'N/A',
@@ -1035,6 +1253,7 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
         return 'Unknown';
     }
   }
+
   String _formatDate(dynamic date) {
     if (date == null) return 'N/A';
     try {
@@ -1045,7 +1264,9 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
       return 'N/A';
     }
   }
-  List<Widget> _buildDetailWidgets(Map<String, String> entry) {    if (_selectedTab == 0) {
+
+  List<Widget> _buildDetailWidgets(Map<String, String> entry) {
+    if (_selectedTab == 0) {
       return [
         Text('Equipment Name: ${entry['name'] ?? 'N/A'}',
             style: const TextStyle(color: AppColors.cream)),
@@ -1079,7 +1300,8 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
         Text('Shift: ${entry['shift']}', style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
         Text('Date: ${entry['date']}', style: const TextStyle(color: AppColors.cream)),
-      ];    } else if (_selectedTab == 2) {
+      ];
+    } else if (_selectedTab == 2) {
       return [
         Text('Inlet: ${entry['inlet']}',
             style: const TextStyle(color: AppColors.cream)),
@@ -1127,7 +1349,8 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
       ];
     } else {
       // Default case for parameter logs
-      return [        Text('Inlet Value: ${entry['value'] ?? 'N/A'}',
+      return [
+        Text('Inlet Value: ${entry['value'] ?? 'N/A'}',
             style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
         Text('Outlet Value: ${entry['outlet_value'] ?? 'N/A'}',

@@ -43,6 +43,11 @@ class AppConfig{
   static const String chemicallogadd= '$baseUrl/api/v1/logs/create/chemical';
   static const String flowlogadd= '$baseUrl/api/v1/logs/create/flow';
   static const String parameterlogadd= '$baseUrl/api/v1/logs/create/flowparameter';
+//deletelogs
+  static const String equiplogdelete= '$baseUrl/api/v1/logs/delete/equipment';
+  static const String chemicallogdelete= '$baseUrl/api/v1/logs/delete/chemical';
+  static const String flowlogdelete= '$baseUrl/api/v1/logs/delete/flow';
+  static const String parameterlogdelete= '$baseUrl/api/v1/logs/delete/flowparameter';
 //editlogs
   static const String equiplogedit= '$baseUrl/api/v1/logs/update/equipment';
   static const String chemicallogedit= '$baseUrl/api/v1/logs/update/chemical';    

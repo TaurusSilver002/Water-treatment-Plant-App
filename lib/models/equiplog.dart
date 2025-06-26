@@ -186,6 +186,33 @@ final statusValue = rawStatus is int
     }
   }
 
+  Future<bool> deleteEquipmentLog(int equipmentLogId) async {
+    final token = await _getToken();
+    if (token == null) {
+      throw Exception('No authentication token found');
+    }
+
+    try {
+      final response = await dio.delete(
+        '${AppConfig.equiplogdelete}/$equipmentLogId',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        throw Exception('Failed to delete equipment log: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      throw Exception('Network error: ${e.message}');
+    }
+  }
+
   int _mapStatusToInt(String status) {
     switch (status) {
       case 'OK':
