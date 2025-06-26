@@ -342,7 +342,7 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
                         value: selectedChemicalShift,
                         items: const [
                           DropdownMenuItem(value: 1, child: Text('1')),
-                          DropdownMenuItem(value: 2, child: Text('3')),
+                          DropdownMenuItem(value: 2, child: Text('2')),
                           DropdownMenuItem(value: 3, child: Text('3')),
                         ],
                         onChanged: (val) => setState(() => selectedChemicalShift = val ?? 1),
@@ -592,14 +592,17 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
           if (equipmentLogs.isEmpty) {
             return const Center(child: Text('No equipment logs available'));
           }
-          return ListView.builder(
-            shrinkWrap: true,
-            physics: const AlwaysScrollableScrollPhysics(),
-            itemCount: equipmentLogs.length,
-            itemBuilder: (context, index) {
-              final entry = equipmentLogs[index];
-              return _buildLogCard(entry);
-            },
+          return SingleChildScrollView(
+            child: ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(bottom: 80),
+              itemCount: equipmentLogs.length,
+              itemBuilder: (context, index) {
+                final entry = equipmentLogs[index];
+                return _buildLogCard(entry);
+              },
+            ),
           );
         } else if (state is EquipmentError) {
           return Center(
@@ -633,14 +636,17 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
           if (chemicalLogs.isEmpty) {
             return const Center(child: Text('No chemical logs available'));
           }
-          return ListView.builder(
-            shrinkWrap: true,
-            physics: const AlwaysScrollableScrollPhysics(),
-            itemCount: chemicalLogs.length,
-            itemBuilder: (context, index) {
-              final entry = chemicalLogs[index];
-              return _buildLogCard(entry);
-            },
+          return SingleChildScrollView(
+            child: ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(bottom: 80),
+              itemCount: chemicalLogs.length,
+              itemBuilder: (context, index) {
+                final entry = chemicalLogs[index];
+                return _buildLogCard(entry);
+              },
+            ),
           );
         } else if (state is ChemicallogError) {
           return Center(
@@ -675,14 +681,17 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
           if (flowLogs.isEmpty) {
             return const Center(child: Text('No flow logs available'));
           }
-          return ListView.builder(
-            shrinkWrap: true,
-            physics: const AlwaysScrollableScrollPhysics(),
-            itemCount: flowLogs.length,
-            itemBuilder: (context, index) {
-              final entry = flowLogs[index];
-              return _buildLogCard(entry);
-            },
+          return SingleChildScrollView(
+            child: ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(bottom: 80),
+              itemCount: flowLogs.length,
+              itemBuilder: (context, index) {
+                final entry = flowLogs[index];
+                return _buildLogCard(entry);
+              },
+            ),
           );
         } else if (state is FlowlogError) {
           return Center(
@@ -716,14 +725,17 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
           if (parameterLogs.isEmpty) {
             return const Center(child: Text('No parameter logs available'));
           }
-          return ListView.builder(
-            shrinkWrap: true,
-            physics: const AlwaysScrollableScrollPhysics(),
-            itemCount: parameterLogs.length,
-            itemBuilder: (context, index) {
-              final entry = parameterLogs[index];
-              return _buildLogCard(entry);
-            },
+          return SingleChildScrollView(
+            child: ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(bottom: 80),
+              itemCount: parameterLogs.length,
+              itemBuilder: (context, index) {
+                final entry = parameterLogs[index];
+                return _buildLogCard(entry);
+              },
+            ),
           );
         } else if (state is ParameterlogError) {
           return Center(
@@ -976,6 +988,192 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
               },
             ),
           ],
+          if (_selectedTab == 2) ...[
+            const SizedBox(width: 8),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.delete, size: 18),
+              label: const Text('Delete'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                final logId = int.tryParse(entry['flow_log_id'] ?? '');
+                if (logId == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Invalid flow log ID'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Delete Flow Log'),
+                    content: const Text('Are you sure you want to delete this flow log? This action cannot be undone.'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        style: TextButton.styleFrom(foregroundColor: Colors.red),
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Delete'),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirm != true) return;
+
+                // Show loading indicator
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) => const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+
+                try {
+                  // Call delete method
+                  final repository = FlowLogRepository();
+                  final success = await repository.deleteFlowLog(logId);
+
+                  // Hide loading indicator
+                  if (mounted && Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  }
+
+                  if (!mounted) return;
+
+                  if (success) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Flow log deleted successfully'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                    // Refresh flow logs
+                    _flowlogBloc.add(FetchFlowlog());
+                  } else {
+                    throw Exception('Failed to delete flow log');
+                  }
+                } catch (e) {
+                  // Hide loading indicator if it's still showing
+                  if (mounted && Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  }
+
+                  if (!mounted) return;
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error deleting flow log: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+            ),
+          ],
+          if (_selectedTab == 3) ...[
+            const SizedBox(width: 8),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.delete, size: 18),
+              label: const Text('Delete'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                final logId = int.tryParse(entry['flow_parameter_log_id'] ?? '');
+                if (logId == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Invalid parameter log ID'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Delete Parameter Log'),
+                    content: const Text('Are you sure you want to delete this parameter log? This action cannot be undone.'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        style: TextButton.styleFrom(foregroundColor: Colors.red),
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Delete'),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirm != true) return;
+
+                // Show loading indicator
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) => const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+
+                try {
+                  // Call delete method
+                  final repository = ParameterLogRepository();
+                  final success = await repository.deleteParameterLog(logId);
+
+                  // Hide loading indicator
+                  if (mounted && Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  }
+
+                  if (!mounted) return;
+
+                  if (success) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Parameter log deleted successfully'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                    // Refresh parameter logs
+                    _parameterlogBloc.add(FetchParameterlog());
+                  } else {
+                    throw Exception('Failed to delete parameter log');
+                  }
+                } catch (e) {
+                  // Hide loading indicator if it's still showing
+                  if (mounted && Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  }
+
+                  if (!mounted) return;
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error deleting parameter log: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+            ),
+          ],
         ],
       ),
     );
@@ -1214,6 +1412,7 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
     }
     final createdAt = log['created_at'] ?? log['start_date'];
     return {
+      'flow_log_id': log['flow_log_id']?.toString() ?? '',
       'name': log['flow_remark'] ?? 'Flow ${log['flow_log_id'] ?? ''}',
       'inlet': log['inlet_value']?.toString() ?? 'N/A',
       'outlet': log['outlet_value']?.toString() ?? 'N/A',
@@ -1233,6 +1432,7 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
     );
     final unit = param['unit'] as String? ?? '';
     return {
+      'flow_parameter_log_id': log['flow_parameter_log_id']?.toString() ?? '',
       'name': param['name'] as String,
       'value': '${log['inlet_value']?.toString() ?? 'N/A'}${unit.isNotEmpty ? ' $unit' : ''}',
       'outlet_value': '${log['outlet_value']?.toString() ?? 'N/A'}${unit.isNotEmpty ? ' $unit' : ''}',
@@ -1302,52 +1502,48 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
         Text('Date: ${entry['date']}', style: const TextStyle(color: AppColors.cream)),
       ];
     } else if (_selectedTab == 2) {
-      return [
-        Text('Inlet: ${entry['inlet']}',
-            style: const TextStyle(color: AppColors.cream)),
+final inletImage = entry['inlet_image'];
+    final outletImage = entry['outlet_image'];
+    return [
+      Text('Inlet: ${entry['inlet']}', style: const TextStyle(color: AppColors.cream)),
+      const SizedBox(height: 8),
+      if (inletImage != null && inletImage.isNotEmpty && inletImage != 'N/A') ...[
+        const Text('Inlet Image:', style: TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
-        if (entry['inlet_image'] != 'N/A') ...[
-          const Text('Inlet Image:',
-              style: TextStyle(color: AppColors.cream)),
-          const SizedBox(height: 8),
-          CachedNetworkImage(
-            imageUrl: entry['inlet_image']!,
-            height: 100,
-            width: double.infinity,
-            fit: BoxFit.cover,
-            placeholder: (context, url) =>
-                const Center(child: CircularProgressIndicator()),
-            errorWidget: (context, url, error) =>
-                const Text('Error loading image'),
-          ),
-        ],
+        CachedNetworkImage(
+          imageUrl: inletImage,
+          height: 100,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+          errorWidget: (context, url, error) => const Text('Error loading image', style: TextStyle(color: AppColors.cream)),
+        ),
+      ] else ...[
+        const Text('Inlet Image: Not available', style: TextStyle(color: AppColors.cream)),
+      ],
+      const SizedBox(height: 8),
+      Text('Outlet: ${entry['outlet']}', style: const TextStyle(color: AppColors.cream)),
+      const SizedBox(height: 8),
+      if (outletImage != null && outletImage.isNotEmpty && outletImage != 'N/A') ...[
+        const Text('Outlet Image:', style: TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
-        Text('Outlet: ${entry['outlet']}',
-            style: const TextStyle(color: AppColors.cream)),
-        const SizedBox(height: 8),
-        if (entry['outlet_image'] != 'N/A') ...[
-          const Text('Outlet Image:',
-              style: TextStyle(color: AppColors.cream)),
-          const SizedBox(height: 8),
-          CachedNetworkImage(
-            imageUrl: entry['outlet_image']!,
-            height: 100,
-            width: double.infinity,
-            fit: BoxFit.cover,
-            placeholder: (context, url) =>
-                const Center(child: CircularProgressIndicator()),
-            errorWidget: (context, url, error) =>
-                const Text('Error loading image'),
-          ),
-        ],
-        const SizedBox(height: 8),
-        Text('Shift: ${entry['shift']}',
-            style: const TextStyle(color: AppColors.cream)),
-        const SizedBox(height: 8),
-        Text('Date: ${entry['date']}',
-            style: const TextStyle(color: AppColors.cream)),
-      ];
-    } else {
+        CachedNetworkImage(
+          imageUrl: outletImage,
+          height: 100,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+          errorWidget: (context, url, error) => const Text('Error loading image', style: TextStyle(color: AppColors.cream)),
+        ),
+      ] else ...[
+        const Text('Outlet Image: Not available', style: TextStyle(color: AppColors.cream)),
+      ],
+      const SizedBox(height: 8),
+      Text('Shift: ${entry['shift']}', style: const TextStyle(color: AppColors.cream)),
+      const SizedBox(height: 8),
+      Text('Date: ${entry['date']}', style: const TextStyle(color: AppColors.cream)),
+    ];
+  }else {
       // Default case for parameter logs
       return [
         Text('Inlet Value: ${entry['value'] ?? 'N/A'}',

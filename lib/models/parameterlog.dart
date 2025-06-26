@@ -126,4 +126,32 @@ class ParameterLogRepository {
       throw Exception('Network error: ${e.message}');
     }
   }
+
+      Future<bool> deleteParameterLog(int parameterLogId) async {
+    final token = await _getToken();
+    if (token == null) {
+      throw Exception('No authentication token found');
+    }
+
+    try {
+      final response = await dio.delete(
+        '${AppConfig.parameterlogdelete}/$parameterLogId',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        throw Exception('Failed to delete chemical log: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      throw Exception('Network error: ${e.message}');
+    }
+  }
+
 }
