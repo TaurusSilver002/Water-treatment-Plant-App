@@ -117,5 +117,43 @@ class PlantParamRepository {
     }
   }
 
+Future<Map<String, dynamic>> editparameter({
+  required int plant_flow_parameter_id,
+  String? parameter_name,
+  
+ 
+}) async {
+  final token = await _getToken();
+  if (token == null) {
+    throw Exception('No authentication token found');
+  }
+
+  final Map<String, dynamic> data = {
+    'plant_flow_parameter_id': plant_flow_parameter_id,
+  };
+  if (plant_flow_parameter_id != null) data['plant_flow_parameter_id'] = plant_flow_parameter_id;
+  if (parameter_name != null) data['parameter_name'] = parameter_name;
+
+
+  try {
+    final response = await dio.put(
+      '${AppConfig.plantparamedit}',
+      data: data,
+      options: Options(
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ),
+    );
+    if (response.statusCode == 200) {
+      return response.data;
+    } else {
+      throw Exception('Failed to edit plant: ${response.statusCode}');
+    }
+  } on DioException catch (e) {
+    throw Exception('Network error: ${e.message}');
+  }
+}
 
 }

@@ -140,6 +140,102 @@ class _EtpParamState extends State<EtpParam> {
     );
   }
 
+  void _editParameter(String plantFlowParameterId, String parameterName, String parameterUnit, String targetValue, String tolerance) async {
+    final paramId = int.tryParse(plantFlowParameterId);
+    if (paramId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Invalid parameter ID'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    print('Editing parameter ID: $paramId'); // Debug print
+
+    final TextEditingController nameController = TextEditingController(text: parameterName);
+    // final TextEditingController unitController = TextEditingController(text: parameterUnit == 'N/A' ? '' : parameterUnit);
+    // final TextEditingController targetValueController = TextEditingController(text: targetValue == 'N/A' ? '' : targetValue);
+    // final TextEditingController toleranceController = TextEditingController(text: tolerance == 'N/A' ? '' : tolerance);
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('Edit Parameter'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Parameter Name'),
+                ),
+                const SizedBox(height: 16),
+                // TextField(
+                //   controller: unitController,
+                //   decoration: const InputDecoration(labelText: 'Parameter Unit'),
+                // ),
+                // const SizedBox(height: 16),
+                // TextField(
+                //   controller: targetValueController,
+                //   decoration: const InputDecoration(labelText: 'Target Value'),
+                //   keyboardType: TextInputType.number,
+                // ),
+                // const SizedBox(height: 16),
+                // TextField(
+                //   controller: toleranceController,
+                //   decoration: const InputDecoration(labelText: 'Tolerance'),
+                //   keyboardType: TextInputType.number,
+                // ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  if (nameController.text.isNotEmpty 
+                  // &&
+                  //     unitController.text.isNotEmpty &&
+                  //     targetValueController.text.isNotEmpty &&
+                  //     toleranceController.text.isNotEmpty
+                      ) {
+                    try {
+                      await PlantParamRepository().editparameter(
+                        plant_flow_parameter_id: paramId,
+                        parameter_name: nameController.text,
+                      
+                      );
+                      _plantparamBloc.add(FetchPlantparam());
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Parameter updated successfully')),
+                      );
+                    } catch (e) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Failed to edit parameter: $e')),
+                      );
+                    }
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Please fill all fields')),
+                    );
+                  }
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   void _deleteParameter(String plantFlowParameterId, String parameterName) async {
     final paramId = int.tryParse(plantFlowParameterId);
     if (paramId == null) {
@@ -151,6 +247,8 @@ class _EtpParamState extends State<EtpParam> {
       );
       return;
     }
+
+    print('Deleting parameter ID: $paramId'); // Debug print
 
     final confirm = await showDialog<bool>(
       context: context,
@@ -245,12 +343,16 @@ class _EtpParamState extends State<EtpParam> {
                     } else if (state is PlantparamError) {
                       return Center(child: Text('Error: ${state.message}'));
                     }
+                    if (paramData.isEmpty) {
+                      return const Center(child: Text('No parameters available'));
+                    }
                     return ListView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: paramData.length,
                       itemBuilder: (context, index) {
                         final item = paramData[index];
+                        print('Rendering parameter: ${item['name']}, ID: ${item['plant_flow_parameter_id']}'); // Debug print
                         return Card(
                           color: AppColors.lightblue,
                           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -288,17 +390,38 @@ class _EtpParamState extends State<EtpParam> {
                                     Text('Deleted Flag: ${item['del_flag']}', style: const TextStyle(color: AppColors.cream)),
                                     const SizedBox(height: 16),
                                     if (_userRole == 1) ...[
-                                      Align(
-                                        alignment: Alignment.centerRight,
-                                        child: ElevatedButton.icon(
-                                          icon: const Icon(Icons.delete, size: 18),
-                                          label: const Text('Delete'),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.red,
-                                            foregroundColor: Colors.white,
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.end,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          ElevatedButton.icon(
+                                            icon: const Icon(Icons.edit, size: 18),
+                                            label: const Text('Edit'),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: AppColors.darkblue,
+                                              foregroundColor: Colors.white,
+                                              minimumSize: const Size(100, 36),
+                                            ),
+                                            onPressed: () => _editParameter(
+                                              item['plant_flow_parameter_id']!,
+                                              item['name']!,
+                                              item['unit']!,
+                                              item['target_value']!,
+                                              item['tolerance']!,
+                                            ),
                                           ),
-                                          onPressed: () => _deleteParameter(item['plant_flow_parameter_id']!, item['name']!),
-                                        ),
+                                          const SizedBox(width: 8),
+                                          ElevatedButton.icon(
+                                            icon: const Icon(Icons.delete, size: 18),
+                                            label: const Text('Delete'),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.red,
+                                              foregroundColor: Colors.white,
+                                              minimumSize: const Size(100, 36),
+                                            ),
+                                            onPressed: () => _deleteParameter(item['plant_flow_parameter_id']!, item['name']!),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ],

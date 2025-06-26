@@ -70,6 +70,7 @@ class AppConfig{
   static const String plantedit = '$baseUrl/api/v1/plant/updateplant';
   static const String plantequipedit = '$baseUrl/plant-equipment/update';
   static const String plantchemedit = '$baseUrl/plant-chemical/update';
+  static const String plantparamedit = '$baseUrl/plant-flow-parameter/update';
   //graph
   static const String graphDataEquip = '$baseUrl/api/v1/logs/graph-data/equipment';
   static const String graphDataChemUsed = '$baseUrl/api/v1/logs/graph-data/chemical/used';
