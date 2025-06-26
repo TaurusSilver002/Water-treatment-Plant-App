@@ -1,6 +1,11 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -274,7 +279,14 @@ class ReportDateSelected extends ReportEvent {
 
 class ReportFetched extends ReportEvent {}
 
-class DownloadPdf extends ReportEvent {}
+class DownloadPdf extends ReportEvent {
+  final BuildContext context;
+
+  DownloadPdf({required this.context});
+
+  @override
+  List<Object?> get props => [context];
+}
 
 class ReportBloc extends Bloc<ReportEvent, ReportState> {
   ReportBloc() : super(ReportState()) {
@@ -300,7 +312,6 @@ class ReportBloc extends Bloc<ReportEvent, ReportState> {
     if (state.startDate == null || state.endDate == null) {
       emit(state.copyWith(
         status: ReportStatus.failure,
-        errorMessage: 'Please select start and end dates',
       ));
       return;
     }
@@ -349,95 +360,142 @@ class ReportBloc extends Bloc<ReportEvent, ReportState> {
           reportData: data,
           errorMessage: null,
         ));
-      } else {
-        emit(state.copyWith(
-          status: ReportStatus.failure,
-          errorMessage: 'Failed to fetch reports: ${response.statusCode}',
-        ));
+      } else {      emit(state.copyWith(
+        status: ReportStatus.failure,
+      ));
       }
     } catch (e) {
       emit(state.copyWith(
         status: ReportStatus.failure,
-        errorMessage: 'Error fetching reports: ${e.toString()}',
       ));
     }
   }
 
-  Future<void> _onDownloadPdf(DownloadPdf event, Emitter<ReportState> emit) async {
-    if (state.startDate == null || state.endDate == null) {
+
+Future<void> _onDownloadPdf(DownloadPdf event, Emitter<ReportState> emit) async {
+  if (state.startDate == null || state.endDate == null) {
+    emit(state.copyWith(
+      status: ReportStatus.failure,
+      errorMessage: 'Please select start and end dates',
+    ));
+    return;
+  }
+
+  emit(state.copyWith(status: ReportStatus.loading));
+
+  try {
+    // Get token
+    final token = await _getToken();
+    if (token == null) {
       emit(state.copyWith(
         status: ReportStatus.failure,
-        errorMessage: 'Please select start and end dates',
       ));
       return;
     }
 
-    emit(state.copyWith(status: ReportStatus.loading));
+    // Get plant_id from SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    final plantId = prefs.getInt('plant_id');
+    if (plantId == null) {
+      emit(state.copyWith(
+        status: ReportStatus.failure,
+      ));
+      return;
+    }
 
-    try {
-      // Get token
-      final token = await _getToken();
-      if (token == null) {
-        emit(state.copyWith(
-          status: ReportStatus.failure,
-          errorMessage: 'Authentication token not found',
-        ));
-        return;
-      }
+    final startDate = DateFormat('yyyy-MM-dd').format(state.startDate!);
+    final endDate = DateFormat('yyyy-MM-dd').format(state.endDate!);
 
-      // Get plant_id from SharedPreferences
-      final prefs = await SharedPreferences.getInstance();
-      final plantId = prefs.getInt('plant_id');
-      if (plantId == null) {
-        emit(state.copyWith(
-          status: ReportStatus.failure,
-          errorMessage: 'Plant ID not found',
-        ));
-        return;
-      }
+    // Fetch report data (similar to _onReportFetched)
+    final reportResponse = await http.post(
+      Uri.parse(AppConfig.alllogs),
+      headers: <String, String>{
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(<String, dynamic>{
+        'plant_id': plantId,
+        'start_date': startDate,
+        'end_date': endDate,
+      }),
+    );
 
-      final startDate = DateFormat('yyyy-MM-dd').format(state.startDate!);
-      final endDate = DateFormat('yyyy-MM-dd').format(state.endDate!);
-      
-      final url = Uri.parse('${AppConfig.pdf}?plant_id=$plantId&start_date=$startDate&end_date=$endDate');
-      
-      final response = await http.get(
-        url,
-        headers: <String, String>{
-          'Authorization': 'Bearer $token',
-        },
-      );
+    ReportData? reportData;
+    if (reportResponse.statusCode == 200) {
+      reportData = ReportData.fromJson(json.decode(reportResponse.body));
+    } else {
+      emit(state.copyWith(
+        status: ReportStatus.failure,
+        errorMessage: 'Failed to fetch report data: ${reportResponse.statusCode}',
+      ));
+      return;
+    }
 
-      if (response.statusCode == 200) {
-        // Use url_launcher to open the PDF in browser or default PDF viewer
-        final String pdfUrl = url.toString();
-        if (await canLaunchUrl(Uri.parse(pdfUrl))) {
-          await launchUrl(Uri.parse(pdfUrl), mode: LaunchMode.externalApplication);
+    // Download PDF
+    final url = Uri.parse('${AppConfig.pdf}?plant_id=$plantId&start_date=$startDate&end_date=$endDate');
+    final pdfResponse = await http.get(
+      url,
+      headers: <String, String>{
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (pdfResponse.statusCode == 200) {
+      try {
+        final fileName = 'report_${startDate}_to_${endDate}.pdf';
+        String? filePath;
+
+        if (Platform.isAndroid) {
+          filePath = await FilePicker.platform.saveFile(
+            dialogTitle: 'Save PDF',
+            fileName: fileName,
+            bytes: pdfResponse.bodyBytes,
+          );
+        } else if (Platform.isIOS) {
+          final directory = await getApplicationDocumentsDirectory();
+          filePath = '${directory.path}/$fileName';
+          final file = File(filePath);
+          await file.writeAsBytes(pdfResponse.bodyBytes);
+        } else {
+          throw Exception('Unsupported platform');
+        }
+
+        if (filePath != null) {
+          if (Platform.isIOS) {
+            final file = File(filePath);
+            if (!await file.exists()) {
+              throw Exception('File was not saved properly');
+            }
+          }
+
           emit(state.copyWith(
             status: ReportStatus.success,
-            errorMessage: null,
+            reportData: reportData, // Set reportData
           ));
+
+          await Share.shareXFiles(
+            [XFile(filePath)],
+            text: 'Report Downloaded to $filePath',
+          );
         } else {
           emit(state.copyWith(
             status: ReportStatus.failure,
-            errorMessage: 'Could not open PDF',
           ));
         }
-      } else {
-        emit(state.copyWith(
-          status: ReportStatus.failure,
-          errorMessage: 'Failed to download PDF: ${response.statusCode}',
-        ));
+      } catch (e) {          emit(state.copyWith(
+            status: ReportStatus.failure,
+          ));
       }
-    } catch (e) {
+    } else {
       emit(state.copyWith(
         status: ReportStatus.failure,
-        errorMessage: 'Error downloading PDF: ${e.toString()}',
       ));
     }
+  } catch (e) {      emit(state.copyWith(
+        status: ReportStatus.failure,
+      ));
   }
-
-}
+}}
 
 // UI Page
 class ReportsPage extends StatelessWidget {
@@ -485,7 +543,7 @@ class _DateSelectionSection extends StatelessWidget {
         start: state.startDate ?? DateTime.now().subtract(const Duration(days: 7)),
         end: state.endDate ?? DateTime.now(),
       );
-      
+
       final DateTimeRange? pickedDateRange = await showDateRangePicker(
         context: context,
         firstDate: DateTime(2020),
@@ -547,7 +605,7 @@ class _DateSelectionSection extends StatelessWidget {
                 const SizedBox(width: 16),
                 ElevatedButton(
                   onPressed: state.startDate != null && state.endDate != null
-                      ? () => context.read<ReportBloc>().add(DownloadPdf())
+                      ? () => context.read<ReportBloc>().add(DownloadPdf(context: context))
                       : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Theme.of(context).primaryColor,
@@ -570,7 +628,6 @@ class _DateSelectionSection extends StatelessWidget {
     );
   }
 }
-
 class _ReportContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -582,12 +639,7 @@ class _ReportContent extends StatelessWidget {
       case ReportStatus.loading:
         return const Center(child: CircularProgressIndicator());
       case ReportStatus.failure:
-        return Center(
-          child: Text(
-            state.errorMessage ?? 'Failed to load report',
-            style: const TextStyle(color: Colors.red),
-          ),
-        );
+        return const Center(child: Text('Select dates and generate report'));
       case ReportStatus.success:
         return Expanded(
           child: DefaultTabController(
