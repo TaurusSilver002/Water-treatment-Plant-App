@@ -62,6 +62,7 @@ class _EtpdataentryState extends State<Etpdataentry> {
     {'title': 'EQUIPMENTS', 'subtitle': 'Equipment used for treatment'},
     {'title': 'LOGS', 'subtitle': 'Data entry field'},
     {'title': 'PARAMETERS', 'subtitle': 'Plant parameters for treatment'},
+    {'title': 'REPORTS', 'subtitle': 'Reports of the treatment process'},
   ];
 
   void _navigateToNextPage(String boxName) {
@@ -75,6 +76,8 @@ class _EtpdataentryState extends State<Etpdataentry> {
       case 'EQUIPMENTS':
         Navigator.pushNamed(context, AppRoutes.etpequip);
         break;
+      case 'REPORTS':
+        Navigator.pushNamed(context, AppRoutes.etpreport);
       case 'LOGS':
         Navigator.push(
           context,

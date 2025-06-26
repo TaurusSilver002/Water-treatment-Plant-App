@@ -22,6 +22,7 @@ class AppRoutes {
   static const etplog = '/etplog';
   static const splash = '/splash';
   static const etpparam = '/etpparam';
+  static const etpreport = '/etpreport';
   static const graph = '/graph';
 }
 class AppConfig{
@@ -38,6 +39,7 @@ class AppConfig{
   static const String chemicallog= '$baseUrl/api/v1/logs/chemical';
   static const String flowlog= '$baseUrl/api/v1/logs/flow';
   static const String parameterlog= '$baseUrl/api/v1/logs/flowparameter';
+  static const String alllogs= '$baseUrl/api/v1/logs/all';
 //createlogs
   static const String equiplogadd= '$baseUrl/api/v1/logs/create/equipment';
   static const String chemicallogadd= '$baseUrl/api/v1/logs/create/chemical';

@@ -11,6 +11,7 @@ import 'package:watershooters/routes/etproutes/etpequip.dart';
 import 'package:watershooters/routes/etproutes/etpflow.dart';
 import 'package:watershooters/routes/etproutes/etplog.dart';
 import 'package:watershooters/routes/etproutes/etpparam.dart';
+import 'package:watershooters/routes/etproutes/reports.dart';
 import 'package:watershooters/routes/graph.dart';
 import 'package:watershooters/routes/profile.dart';
 import 'package:watershooters/routes/stp.dart';
@@ -56,6 +57,7 @@ class MyApp extends StatelessWidget {
       '/splash':(context) => const SplashScreen(),
       '/login':(context) => const LoginPage(),
       '/signup':(context) => const SignUpPage(),
+      '/etpreport':(context) => const ReportsScreen(),
      },
     );
   }
