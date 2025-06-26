@@ -108,6 +108,11 @@ class PlantModel {
 class PlantRepository {
   final Dio _dio;
 PlantRepository(this._dio);
+ Future<String?> _getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('token');
+  }
+  
   Future<bool> postPlant(PlantModel plant) async {
   try {
     final prefs = await SharedPreferences.getInstance();
@@ -132,4 +137,83 @@ PlantRepository(this._dio);
     throw Exception('Error posting plant data: ${e.toString()}');
   }
 }
+     Future<bool> deleteplant(int plantId) async {
+    final token = await _getToken();
+    if (token == null) {
+      throw Exception('No authentication token found');
+    }
+
+    try {
+      final response = await _dio.delete(
+        '${AppConfig.plantdelete}/$plantId',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        throw Exception('Failed to delete chemical log: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      throw Exception('Network error: ${e.message}');
+    }
+  }
+Future<Map<String, dynamic>> editplant({
+  required int plantId,
+  int? plantTypeId,
+  String? plantName,
+  String? address,
+  int? plantCapacity,
+  bool? operationalStatus,
+  String? plantDescription,
+  String? hotelName,
+  List<int>? clientIds,
+  List<int>? operatorIds,
+}) async {
+  final token = await _getToken();
+  if (token == null) {
+    throw Exception('No authentication token found');
+  }
+
+  final Map<String, dynamic> data = {
+    'plant_id': plantId,
+  };
+
+  if (plantTypeId != null) data['plant_type_id'] = plantTypeId;
+  if (plantName != null) data['plant_name'] = plantName;
+  if (address != null) data['address'] = address;
+  if (plantCapacity != null) data['plant_capacity'] = plantCapacity;
+  if (operationalStatus != null) data['operational_status'] = operationalStatus;
+  if (plantDescription != null) data['plant_description'] = plantDescription;
+  if (hotelName != null) data['hotel_name'] = hotelName;
+  if (clientIds != null && clientIds.isNotEmpty) data['client_id'] = clientIds;
+  if (operatorIds != null && operatorIds.isNotEmpty) data['operator_id'] = operatorIds;
+
+  try {
+    final response = await _dio.put(
+      '${AppConfig.plantedit}/$plantId',
+      data: data,
+      options: Options(
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ),
+    );
+    if (response.statusCode == 200) {
+      return response.data;
+    } else {
+      throw Exception('Failed to edit plant: ${response.statusCode}');
+    }
+  } on DioException catch (e) {
+    throw Exception('Network error: ${e.message}');
+  }
+}
+
+
 }

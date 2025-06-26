@@ -112,5 +112,46 @@ class PlantChemRepository {
       throw Exception('Network error: ${e.message}');
     }
   }
+Future<Map<String, dynamic>> editchemical({
+  required int plant_chemical_id,
+  String? chemical_name,
+  String? chemical_unit,
+  int? quantity,
+ 
+}) async {
+  final token = await _getToken();
+  if (token == null) {
+    throw Exception('No authentication token found');
+  }
+
+  final Map<String, dynamic> data = {
+    'plant_chemical_id': plant_chemical_id,
+  };
+  if (plant_chemical_id != null) data['plant_chemical_id'] = plant_chemical_id;
+  if (chemical_name != null) data['chemical_name'] = chemical_name;
+  if (chemical_unit != null) data['chemical_unit'] = chemical_unit;
+  if (quantity != null) data['quantity'] = quantity;
+
+  try {
+    final response = await dio.put(
+      '${AppConfig.plantchemedit}',
+      data: data,
+      options: Options(
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ),
+    );
+    if (response.statusCode == 200) {
+      return response.data;
+    } else {
+      throw Exception('Failed to edit plant: ${response.statusCode}');
+    }
+  } on DioException catch (e) {
+    throw Exception('Network error: ${e.message}');
+  }
+}
+
 
 }

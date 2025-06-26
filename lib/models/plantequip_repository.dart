@@ -113,5 +113,47 @@ class PlantEquipRepository {
     }
   }
 
+Future<Map<String, dynamic>> editequipment({
+  required int plant_equipment_id,
+  String? equipment_name,
+  String? equipment_type,
+  String? last_maintenance,
+  int? status,
+ 
+}) async {
+  final token = await _getToken();
+  if (token == null) {
+    throw Exception('No authentication token found');
+  }
+
+  final Map<String, dynamic> data = {
+    'plant_equipment_id': plant_equipment_id,
+  };
+  if (plant_equipment_id != null) data['plant_equipment_id'] = plant_equipment_id;
+  if (equipment_name != null) data['equipment_name'] = equipment_name;
+  if (equipment_type != null) data['equipment_type'] = equipment_type;
+  if (last_maintenance != null) data['last_maintenance'] = last_maintenance;
+  if (status != null) data['status'] = status;
+
+  try {
+    final response = await dio.put(
+      '${AppConfig.plantequipedit}',
+      data: data,
+      options: Options(
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ),
+    );
+    if (response.statusCode == 200) {
+      return response.data;
+    } else {
+      throw Exception('Failed to edit plant: ${response.statusCode}');
+    }
+  } on DioException catch (e) {
+    throw Exception('Network error: ${e.message}');
+  }
+}
 
 }

@@ -125,6 +125,90 @@ class _EtpChemicalState extends State<EtpChemical> {
     );
   }
 
+  void _editChemical(String plantChemicalId, String chemicalName, String amount, String unit) async {
+    final chemId = int.tryParse(plantChemicalId);
+    if (chemId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Invalid chemical ID'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    print('Editing chemical ID: $chemId'); // Debug print
+
+    final TextEditingController compoundController = TextEditingController(text: chemicalName);
+    final TextEditingController amountController = TextEditingController(text: amount);
+    final TextEditingController unitController = TextEditingController(text: unit);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Edit Chemical'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: compoundController,
+                decoration: const InputDecoration(labelText: 'Compound'),
+              ),
+              TextField(
+                controller: amountController,
+                decoration: const InputDecoration(labelText: 'Amount'),
+                keyboardType: TextInputType.number,
+              ),
+              TextField(
+                controller: unitController,
+                decoration: const InputDecoration(labelText: 'Unit (e.g. mg/l, Kg)'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                if (compoundController.text.isNotEmpty &&
+                    amountController.text.isNotEmpty &&
+                    unitController.text.isNotEmpty) {
+                  try {
+                    print('Sending edit payload: plant_chemical_id: $chemId, chemical_name: ${compoundController.text}, quantity: ${amountController.text}, chemical_unit: ${unitController.text}'); // Debug print
+                    await PlantChemRepository().editchemical(
+                      plant_chemical_id: chemId,
+                      chemical_name: compoundController.text,
+                      quantity: int.tryParse(amountController.text),
+                      chemical_unit: unitController.text,
+                    );
+                    _plantchemBloc.add(FetchPlantchem());
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Chemical updated successfully')),
+                    );
+                  } catch (e) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed to edit chemical: $e')),
+                    );
+                  }
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please fill all fields')),
+                  );
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _deleteChemical(String plantChemicalId, String chemicalName) async {
     final chemId = int.tryParse(plantChemicalId);
     if (chemId == null) {
@@ -136,6 +220,8 @@ class _EtpChemicalState extends State<EtpChemical> {
       );
       return;
     }
+
+    print('Deleting chemical ID: $chemId'); // Debug print
 
     final confirm = await showDialog<bool>(
       context: context,
@@ -230,11 +316,18 @@ class _EtpChemicalState extends State<EtpChemical> {
                     } else if (state is PlantchemError) {
                       return Center(child: Text('Error: ${state.message}'));
                     }
+                    if (chemicals.isEmpty) {
+                      return const Center(child: Text('No chemicals available'));
+                    }
                     return ListView.separated(
                       itemCount: chemicals.length,
                       separatorBuilder: (context, index) => const SizedBox(height: 8),
                       itemBuilder: (context, index) {
                         final chemical = chemicals[index];
+                        final amountParts = chemical['amount']!.split(' ');
+                        final amount = amountParts.isNotEmpty ? amountParts[0] : chemical['amount'];
+                        final unit = amountParts.length > 1 ? amountParts[1] : '';
+                        print('Rendering chemical: ${chemical['compound']}, ID: ${chemical['plant_chemical_id']}'); // Debug print
                         return Padding(
                           padding: const EdgeInsets.all(8.0),
                           child: Material(
@@ -271,17 +364,37 @@ class _EtpChemicalState extends State<EtpChemical> {
                                       Text('Deleted Flag: ${chemical['del_flag']}', style: const TextStyle(color: AppColors.cream)),
                                       const SizedBox(height: 12),
                                       if (_userRole == 1) ...[
-                                        Align(
-                                          alignment: Alignment.centerRight,
-                                          child: ElevatedButton.icon(
-                                            icon: const Icon(Icons.delete, size: 18),
-                                            label: const Text('Delete'),
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: Colors.red,
-                                              foregroundColor: Colors.white,
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.end,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            ElevatedButton.icon(
+                                              icon: const Icon(Icons.edit, size: 18),
+                                              label: const Text('Edit'),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: AppColors.darkblue,
+                                                foregroundColor: Colors.white,
+                                                minimumSize: const Size(100, 36),
+                                              ),
+                                              onPressed: () => _editChemical(
+                                                chemical['plant_chemical_id']!,
+                                                chemical['compound']!,
+                                                amount,
+                                                unit,
+                                              ),
                                             ),
-                                            onPressed: () => _deleteChemical(chemical['plant_chemical_id']!, chemical['compound']!),
-                                          ),
+                                            const SizedBox(width: 8),
+                                            ElevatedButton.icon(
+                                              icon: const Icon(Icons.delete, size: 18),
+                                              label: const Text('Delete'),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.red,
+                                                foregroundColor: Colors.white,
+                                                minimumSize: const Size(100, 36),
+                                              ),
+                                              onPressed: () => _deleteChemical(chemical['plant_chemical_id']!, chemical['compound']!),
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ],

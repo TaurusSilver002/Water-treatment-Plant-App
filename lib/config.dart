@@ -44,10 +44,12 @@ class AppConfig{
   static const String flowlogadd= '$baseUrl/api/v1/logs/create/flow';
   static const String parameterlogadd= '$baseUrl/api/v1/logs/create/flowparameter';
 //deletelogs
+  static const String plantdelete = '$baseUrl/api/v1/plant/deleteplant';
   static const String equiplogdelete= '$baseUrl/api/v1/logs/delete/equipment';
   static const String chemicallogdelete= '$baseUrl/api/v1/logs/delete/chemical';
   static const String flowlogdelete= '$baseUrl/api/v1/logs/delete/flow';
   static const String parameterlogdelete= '$baseUrl/api/v1/logs/delete/flowparameter';
+
 //editlogs
   static const String equiplogedit= '$baseUrl/api/v1/logs/update/equipment';
   static const String chemicallogedit= '$baseUrl/api/v1/logs/update/chemical';    
@@ -64,6 +66,10 @@ class AppConfig{
   static const String plantequipdelete = '$baseUrl/plant-equipment/';
   static const String plantchemdelete = '$baseUrl/plant-chemical/'; 
   static const String plantparamdelete = '$baseUrl/plant-flow-parameter/';
+  //editfunctions
+  static const String plantedit = '$baseUrl/api/v1/plant/updateplant';
+  static const String plantequipedit = '$baseUrl/plant-equipment/update';
+  static const String plantchemedit = '$baseUrl/plant-chemical/update';
   //graph
   static const String graphDataEquip = '$baseUrl/api/v1/logs/graph-data/equipment';
   static const String graphDataChemUsed = '$baseUrl/api/v1/logs/graph-data/chemical/used';
