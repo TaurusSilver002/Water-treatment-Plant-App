@@ -54,52 +54,67 @@ class ChemicalLogRepository {
     }
   }
 
-  Future<Map<String, dynamic>> addChemicalLog(Map<String, dynamic> log) async {
-    final token = await _getToken();
-    if (token == null) {
-      throw Exception('No authentication token found');
-    }
-
-    final prefs = await SharedPreferences.getInstance();
-    final plantId = prefs.getInt('plant_id');
-    if (plantId == null) {
-      throw Exception('No plant_id found in shared preferences');
-    }
-
-    final chemicalId = log['plant_chemical_id'];
-    final quantityUsed = log['quantity_used'];
-    final quantityLeft = log['incomming_quantity'];
-    final sludgeDischarge = log['sludge_discharge'];
-    final shift = log['shift'];
-
-    try {
-      final response = await dio.post(
-        AppConfig.chemicallogadd,
-        data: {
-          'plant_id': plantId,
-          'plant_chemical_id': int.parse(chemicalId.toString()),
-          'incomming_quantity': double.parse(quantityLeft.toString()),
-          'quantity_used': double.parse(quantityUsed.toString()),
-          'sludge_discharge': sludgeDischarge,
-          'shift': int.parse(shift.toString()),
-        },
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Content-Type': 'application/json',
-          },
-        ),
-      );
-      if (response.statusCode == 201 || response.statusCode == 200) {
-        return response.data;
-      } else {
-        throw Exception('Failed to add chemical log: ${response.statusCode}');
-      }
-    } on DioException catch (e) {
-      throw Exception('Network error: ${e.message}');
-    }
+Future<Map<String, dynamic>> addChemicalLog(Map<String, dynamic> log) async {
+  final token = await _getToken();
+  if (token == null) {
+    throw Exception('No authentication token found');
   }
 
+  final prefs = await SharedPreferences.getInstance();
+  final plantId = prefs.getInt('plant_id');
+  if (plantId == null) {
+    throw Exception('No plant_id found in shared preferences');
+  }
+
+  final chemicalId = log['plant_chemical_id'];
+  final quantityUsed = log['quantity_used'];
+  final quantityLeft = log['incomming_quantity'];
+  final sludgeDischarge = log['sludge_discharge'];
+  final shift = log['shift'];
+
+  // Validate required fields
+  if (chemicalId == null || quantityUsed == null || shift == null) {
+    throw Exception('Missing required fields: plant_chemical_id, quantity_used, or shift');
+  }
+
+  // Prepare the data payload
+  final data = <String, dynamic>{
+    'plant_id': plantId,
+    'plant_chemical_id': int.parse(chemicalId.toString()),
+    'quantity_used': double.parse(quantityUsed.toString()),
+    'sludge_discharge': sludgeDischarge ?? false,
+    'shift': int.parse(shift.toString()),
+  };
+
+  // Only include incomming_quantity if it is non-null, non-empty, and a valid double
+  if (quantityLeft != null && quantityLeft.toString().isNotEmpty) {
+    final parsedQuantityLeft = double.tryParse(quantityLeft.toString());
+    if (parsedQuantityLeft == null) {
+      throw Exception('Invalid incomming_quantity: must be a valid number');
+    }
+    data['incomming_quantity'] = parsedQuantityLeft;
+  }
+
+  try {
+    final response = await dio.post(
+      AppConfig.chemicallogadd,
+      data: data,
+      options: Options(
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ),
+    );
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      return response.data;
+    } else {
+      throw Exception('Failed to add chemical log: ${response.statusCode}');
+    }
+  } on DioException catch (e) {
+    throw Exception('Network error: ${e.message}');
+  }
+}
   Future<Map<String, dynamic>> editChemicalLog({
     required int chemicalLogId,
     double? quantityUsed,

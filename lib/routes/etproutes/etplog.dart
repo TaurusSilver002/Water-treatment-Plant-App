@@ -472,15 +472,22 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
                         setState(() => errorText = 'Please select a chemical.');
                         return;
                       }
-                      if (selectedQuantityUsed.isEmpty || selectedQuantityLeft.isEmpty) {
-                        setState(() => errorText = 'Please enter both quantity used and incoming quantity.');
+                      if (selectedQuantityUsed.isEmpty) {
+                        setState(() => errorText = 'Please enter quantity used.');
                         return;
                       }
-                      final entry = {
+                      // Validate that incomming_quantity is a valid double if provided
+                      // Only include incomming_quantity if a valid value is provided
+                      if (selectedQuantityLeft.isNotEmpty && double.tryParse(selectedQuantityLeft) == null) {
+                        setState(() => errorText = 'Incoming Quantity must be a valid number.');
+                        return;
+                      }
+                      final entry = <String, dynamic>{
                         'plant_id': plantId,
                         'plant_chemical_id': selectedChemicalId,
                         'quantity_used': selectedQuantityUsed,
-                        'incomming_quantity': selectedQuantityLeft,
+                        if (selectedQuantityLeft.isNotEmpty && double.tryParse(selectedQuantityLeft) != null)
+                          'incomming_quantity': selectedQuantityLeft,
                         'sludge_discharge': selectedSludgeDischarge,
                         'shift': selectedChemicalShift,
                       };
@@ -1395,10 +1402,21 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
       (c) => c['plant_chemical_id'] == chemicalId,
       orElse: () => {'name': 'Chemical ${log['chemical_log_id'] ?? ''}'},
     );
+    String incommingQuantity = 'N/A';
+    try {
+      final val = log['incomming_quantity'];
+      if (val != null && val.toString().isNotEmpty) {
+        // Try to parse as double, fallback to string if fails
+        final parsed = double.tryParse(val.toString());
+        incommingQuantity = parsed != null ? parsed.toString() : val.toString();
+      }
+    } catch (e) {
+      incommingQuantity = 'N/A';
+    }
     return {
       'chemical_log_id': log['chemical_log_id']?.toString() ?? '',
       'name': chemical['name'] as String,
-      'incomming_quantity': log['incomming_quantity']?.toString() ?? 'N/A',
+      'incomming_quantity': incommingQuantity,
       'quantity_used': log['quantity_used']?.toString() ?? 'N/A',
       'quantity_left': log['quantity_left']?.toString() ?? 'N/A',
       'sludge_discharge': (log['sludge_discharge'] == true) ? 'true' : 'false',
