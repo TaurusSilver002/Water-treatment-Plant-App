@@ -42,6 +42,7 @@ class CustomDrawer extends StatelessWidget {
           } else if (state is LoginFailureState) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
+                
                 content: Text(state.message),
                 backgroundColor: Colors.red,
               ),
@@ -123,7 +124,7 @@ class CustomDrawer extends StatelessWidget {
                       title: const Text('Profile',
                           style: TextStyle(color: AppColors.cream)),
                       onTap: () {
-                        Navigator.pushNamed(
+                        Navigator.pushReplacementNamed(
                           context,
                           AppRoutes.profile,
                         );

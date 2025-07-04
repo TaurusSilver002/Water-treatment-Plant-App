@@ -8,6 +8,7 @@ class AppColors{
 }
 class AppRoutes {
   static const dashboard = '/home';
+  static const login = '/login';
   static const profile = '/profile';  
   static const contacts = '/contacts';
   static const terms='/terms';

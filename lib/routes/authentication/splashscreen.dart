@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 
 import 'package:watershooters/config.dart';
@@ -33,10 +34,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     // Start animation immediately
     _animationController.forward();
-    
+        _checkAuthStatus();
+
     // Navigate after animation completes with a short delay for visibility
     Timer(const Duration(milliseconds: 1600), () {
-      Navigator.pushReplacementNamed(context, '/login');
+      Navigator.pushReplacementNamed(context, AppRoutes.login);
     });
   }
 
@@ -78,4 +80,19 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       ),
     );
   }
+  Future<void> _checkAuthStatus() async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('token');
+
+  // Wait for animation to complete
+  await Future.delayed(const Duration(milliseconds: 1600));
+
+  if (!mounted) return;
+
+  if (token != null) {
+    Navigator.pushReplacementNamed(context, AppRoutes.dashboard);
+  } else {
+    Navigator.pushReplacementNamed(context, AppRoutes.login);
+  }
+}
 }

@@ -57,22 +57,25 @@ class AuthRepo {
         ),
       );
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 && response.data['token'] != null) {
         String token = response.data['token'];
         await _decodeAndStoreToken(token);
-        return token;
+        return "SUCCESS:" + token;  // Adding a prefix to distinguish success
       } else {
-        return null;
+        // For non-200 responses or responses without token
+        String errorMessage = response.data['message'] ?? 'Registration failed';
+        return "ERROR:" + errorMessage;
       }
     } on DioException catch (e) {
       if (e.response != null) {
         print("Error Response Data: ${e.response?.data}");
-        return e.response?.data["message"] ?? "Something went wrong.";
+        String errorMessage = e.response?.data["message"] ?? "Something went wrong.";
+        return "ERROR:" + errorMessage;
       } else {
-        return "No response from server. Check your internet connection.";
+        return "ERROR:No response from server. Check your internet connection.";
       }
     } catch (e) {
-      return "Unexpected error: ${e.toString()}";
+      return "ERROR:Unexpected error: ${e.toString()}";
     }
   }
 

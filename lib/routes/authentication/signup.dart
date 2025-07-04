@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:intl/intl.dart';
+import 'dart:convert';
 import 'package:watershooters/bloc/register/registrationBloc.dart';
 import 'package:watershooters/config.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -135,12 +136,28 @@ class _SignUpPageState extends State<SignUpPage> {
                       Navigator.pushReplacementNamed(context, '/home');
                     } else if (state is RegistrationFailedState) {
                       Navigator.pop(context); // Close loading dialog
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(state.message),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
+                      try {
+                        // Parse the error response
+                        Map<String, dynamic> errorResponse = json.decode(state.message);
+                        String errorMessage = errorResponse['message'] ?? 'Registration failed';
+                        
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(errorMessage),
+                            backgroundColor: Colors.red,
+                            duration: const Duration(seconds: 3),
+                          ),
+                        );
+                      } catch (e) {
+                        // Fallback if response is not in expected format
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(state.message),
+                            backgroundColor: Colors.red,
+                            duration: const Duration(seconds: 3),
+                          ),
+                        );
+                      }
                     }
                   },
                   child: Padding(

@@ -1,5 +1,5 @@
 import 'dart:io';
-
+import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -9,12 +9,9 @@ import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:watershooters/config.dart';
 import 'package:equatable/equatable.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:url_launcher/url_launcher.dart';
-
-// The URL should be replaced with your actual API endpoint
+import 'package:permission_handler/permission_handler.dart';
+import 'package:watershooters/config.dart';
 
 // Models
 class ReportData {
@@ -288,11 +285,34 @@ class DownloadPdf extends ReportEvent {
   List<Object?> get props => [context];
 }
 
+class DownloadCsv extends ReportEvent {
+  final BuildContext context;
+
+  DownloadCsv({required this.context});
+
+  @override
+  List<Object?> get props => [context];
+}
+
 class ReportBloc extends Bloc<ReportEvent, ReportState> {
   ReportBloc() : super(ReportState()) {
     on<ReportDateSelected>(_onDateSelected);
     on<ReportFetched>(_onReportFetched);
     on<DownloadPdf>(_onDownloadPdf);
+    on<DownloadCsv>(_onDownloadCsv);
+  }
+
+  static String getStatusText(int status) {
+    switch (status) {
+      case 0:
+        return 'Working';
+      case 1:
+        return 'Not Working';
+      case 2:
+        return 'Under Maintenance';
+      default:
+        return 'Unknown';
+    }
   }
 
   void _onDateSelected(ReportDateSelected event, Emitter<ReportState> emit) {
@@ -307,11 +327,11 @@ class ReportBloc extends Bloc<ReportEvent, ReportState> {
     return prefs.getString('token');
   }
 
-  Future<void> _onReportFetched(
-      ReportFetched event, Emitter<ReportState> emit) async {
+  Future<void> _onReportFetched(ReportFetched event, Emitter<ReportState> emit) async {
     if (state.startDate == null || state.endDate == null) {
       emit(state.copyWith(
         status: ReportStatus.failure,
+        errorMessage: 'Please select start and end dates',
       ));
       return;
     }
@@ -319,7 +339,6 @@ class ReportBloc extends Bloc<ReportEvent, ReportState> {
     emit(state.copyWith(status: ReportStatus.loading));
 
     try {
-      // Get token
       final token = await _getToken();
       if (token == null) {
         emit(state.copyWith(
@@ -329,7 +348,6 @@ class ReportBloc extends Bloc<ReportEvent, ReportState> {
         return;
       }
 
-      // Get plant_id from SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       final plantId = prefs.getInt('plant_id');
       if (plantId == null) {
@@ -360,142 +378,322 @@ class ReportBloc extends Bloc<ReportEvent, ReportState> {
           reportData: data,
           errorMessage: null,
         ));
-      } else {      emit(state.copyWith(
-        status: ReportStatus.failure,
-      ));
+      } else {
+        print('Report fetch failed: ${response.statusCode}');
+        emit(state.copyWith(
+          status: ReportStatus.failure,
+          errorMessage: 'Failed to fetch report: ${response.statusCode}',
+        ));
       }
     } catch (e) {
+      print('Report fetch error: $e');
       emit(state.copyWith(
         status: ReportStatus.failure,
+        errorMessage: 'Error fetching report: $e',
       ));
     }
   }
 
+  Future<void> _onDownloadPdf(DownloadPdf event, Emitter<ReportState> emit) async {
+    if (state.startDate == null || state.endDate == null) {
+      emit(state.copyWith(
+        status: ReportStatus.failure,
+        errorMessage: 'Please select start and end dates',
+      ));
+      return;
+    }
 
-Future<void> _onDownloadPdf(DownloadPdf event, Emitter<ReportState> emit) async {
-  if (state.startDate == null || state.endDate == null) {
-    emit(state.copyWith(
-      status: ReportStatus.failure,
-      errorMessage: 'Please select start and end dates',
-    ));
-    return;
+    emit(state.copyWith(status: ReportStatus.loading));
+
+    try {
+      final token = await _getToken();
+      if (token == null) {
+        emit(state.copyWith(
+          status: ReportStatus.failure,
+          errorMessage: 'Authentication token not found',
+        ));
+        return;
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      final plantId = prefs.getInt('plant_id');
+      if (plantId == null) {
+        emit(state.copyWith(
+          status: ReportStatus.failure,
+          errorMessage: 'Plant ID not found',
+        ));
+        return;
+      }
+
+      final startDate = DateFormat('yyyy-MM-dd').format(state.startDate!);
+      final endDate = DateFormat('yyyy-MM-dd').format(state.endDate!);
+
+      final reportResponse = await http.post(
+        Uri.parse(AppConfig.alllogs),
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(<String, dynamic>{
+          'plant_id': plantId,
+          'start_date': startDate,
+          'end_date': endDate,
+        }),
+      );
+
+      ReportData? reportData;
+      if (reportResponse.statusCode == 200) {
+        reportData = ReportData.fromJson(json.decode(reportResponse.body));
+      } else {
+        emit(state.copyWith(
+          status: ReportStatus.failure,
+          errorMessage: 'Failed to fetch report data: ${reportResponse.statusCode}',
+        ));
+        return;
+      }
+
+      final url = Uri.parse('${AppConfig.pdf}?plant_id=$plantId&start_date=$startDate&end_date=$endDate');
+      final pdfResponse = await http.get(
+        url,
+        headers: <String, String>{
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (pdfResponse.statusCode == 200) {
+        try {
+          final fileName = 'report_${startDate}_to_${endDate}.pdf';
+          String? filePath;
+
+          if (Platform.isAndroid || Platform.isIOS) {
+            final directory = await getApplicationDocumentsDirectory();
+            filePath = '${directory.path}/$fileName';
+            final file = File(filePath);
+            await file.writeAsBytes(pdfResponse.bodyBytes);
+          } else {
+            throw Exception('Unsupported platform');
+          }
+
+          if (filePath != null) {
+            final file = File(filePath);
+            if (!await file.exists()) {
+              throw Exception('File was not saved properly');
+            }
+
+            emit(state.copyWith(
+              status: ReportStatus.success,
+              reportData: reportData,
+            ));
+
+            await Share.shareXFiles(
+              [XFile(filePath)],
+              text: 'Report Downloaded to $filePath',
+            );
+          } else {
+            emit(state.copyWith(
+              status: ReportStatus.failure,
+              errorMessage: 'Failed to save PDF file',
+            ));
+          }
+        } catch (e) {
+          print('PDF save/share error: $e');
+          emit(state.copyWith(
+            status: ReportStatus.failure,
+            errorMessage: 'Error saving PDF: $e',
+          ));
+        }
+      } else {
+        emit(state.copyWith(
+          status: ReportStatus.failure,
+          errorMessage: 'Failed to download PDF: ${pdfResponse.statusCode}',
+        ));
+      }
+    } catch (e) {
+      print('PDF download error: $e');
+      emit(state.copyWith(
+        status: ReportStatus.failure,
+        errorMessage: 'Error downloading PDF: $e',
+      ));
+    }
   }
 
-  emit(state.copyWith(status: ReportStatus.loading));
-
-  try {
-    // Get token
-    final token = await _getToken();
-    if (token == null) {
+  Future<void> _onDownloadCsv(DownloadCsv event, Emitter<ReportState> emit) async {
+    if (state.startDate == null || state.endDate == null) {
       emit(state.copyWith(
         status: ReportStatus.failure,
+        errorMessage: 'Please select start and end dates',
       ));
       return;
     }
 
-    // Get plant_id from SharedPreferences
-    final prefs = await SharedPreferences.getInstance();
-    final plantId = prefs.getInt('plant_id');
-    if (plantId == null) {
-      emit(state.copyWith(
-        status: ReportStatus.failure,
-      ));
-      return;
-    }
+    emit(state.copyWith(status: ReportStatus.loading));
 
-    final startDate = DateFormat('yyyy-MM-dd').format(state.startDate!);
-    final endDate = DateFormat('yyyy-MM-dd').format(state.endDate!);
+    try {
+      final token = await _getToken();
+      if (token == null) {
+        emit(state.copyWith(
+          status: ReportStatus.failure,
+          errorMessage: 'Authentication token not found',
+        ));
+        return;
+      }
 
-    // Fetch report data (similar to _onReportFetched)
-    final reportResponse = await http.post(
-      Uri.parse(AppConfig.alllogs),
-      headers: <String, String>{
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode(<String, dynamic>{
-        'plant_id': plantId,
-        'start_date': startDate,
-        'end_date': endDate,
-      }),
-    );
+      final prefs = await SharedPreferences.getInstance();
+      final plantId = prefs.getInt('plant_id');
+      if (plantId == null) {
+        emit(state.copyWith(
+          status: ReportStatus.failure,
+          errorMessage: 'Plant ID not found',
+        ));
+        return;
+      }
 
-    ReportData? reportData;
-    if (reportResponse.statusCode == 200) {
-      reportData = ReportData.fromJson(json.decode(reportResponse.body));
-    } else {
-      emit(state.copyWith(
-        status: ReportStatus.failure,
-        errorMessage: 'Failed to fetch report data: ${reportResponse.statusCode}',
-      ));
-      return;
-    }
+      final startDate = DateFormat('yyyy-MM-dd').format(state.startDate!);
+      final endDate = DateFormat('yyyy-MM-dd').format(state.endDate!);
 
-    // Download PDF
-    final url = Uri.parse('${AppConfig.pdf}?plant_id=$plantId&start_date=$startDate&end_date=$endDate');
-    final pdfResponse = await http.get(
-      url,
-      headers: <String, String>{
-        'Authorization': 'Bearer $token',
-      },
-    );
+      // Fetch report data if not already available
+      ReportData? reportData = state.reportData;
+      if (reportData == null) {
+        print('Fetching report data for CSV as state.reportData is null');
+        final reportResponse = await http.post(
+          Uri.parse(AppConfig.alllogs),
+          headers: <String, String>{
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode(<String, dynamic>{
+            'plant_id': plantId,
+            'start_date': startDate,
+            'end_date': endDate,
+          }),
+        );
 
-    if (pdfResponse.statusCode == 200) {
+        if (reportResponse.statusCode == 200) {
+          reportData = ReportData.fromJson(json.decode(reportResponse.body));
+        } else {
+          print('Failed to fetch report data: ${reportResponse.statusCode}');
+          emit(state.copyWith(
+            status: ReportStatus.failure,
+            errorMessage: 'Failed to fetch report data: ${reportResponse.statusCode}',
+          ));
+          return;
+        }
+      }
+
+      // Sanitize CSV fields
+      String sanitizeCsvField(String? input) {
+        if (input == null) return '';
+        return '"${input.replaceAll('"', '""').replaceAll(',', ' ').replaceAll('\n', ' ')}"';
+      }
+
+      // Generate CSV content
+      final StringBuffer csv = StringBuffer();
+      csv.writeln('Chemical Logs');
+      csv.writeln('Chemical Name,Quantity Used,Quantity Left,Sludge Discharge,Shift,Date');
+      for (var log in reportData.chemicalLogs) {
+        csv.writeln('${sanitizeCsvField(log.chemicalName)},${log.quantityUsed},${log.quantityLeft},${log.sludgeDischarge},${log.shift},${sanitizeCsvField(log.createdAt)}');
+      }
+      csv.writeln();
+
+      csv.writeln('Equipment Logs');
+      csv.writeln('Equipment Name,Status,Maintenance Done,Remark,Shift,Date');
+      for (var log in reportData.equipmentLogs) {
+        csv.writeln('${sanitizeCsvField(log.equipmentName)},${sanitizeCsvField(getStatusText(log.equipmentStatus))},${log.maintenanceDone},${sanitizeCsvField(log.equipmentRemark)},${log.shift},${sanitizeCsvField(log.createdAt)}');
+      }
+      csv.writeln();
+
+      csv.writeln('Flow Parameter Logs');
+      csv.writeln('Parameter Name,Inlet Value,Outlet Value,Shift,Date');
+      for (var log in reportData.flowParameterLogs) {
+        csv.writeln('${sanitizeCsvField(log.parameterName)},${log.inletValue},${log.outletValue},${log.shift},${sanitizeCsvField(log.createdAt)}');
+      }
+      csv.writeln();
+
+      csv.writeln('Flow Logs');
+      csv.writeln('Flow Log ID,Inlet Value,Outlet Value,Shift,Date');
+      for (var log in reportData.flowLogs) {
+        csv.writeln('${log.flowLogId},${log.inletValue},${log.outletValue},${log.shift},${sanitizeCsvField(log.createdAt)}');
+      }
+
+      // Log CSV content for debugging
+      final csvString = csv.toString();
+      print('Generated CSV:\n$csvString');
+
+      // Convert to bytes
+      final bytes = Uint8List.fromList(utf8.encode(csvString));
+
+      // Save CSV file to app-specific storage (same as PDF)
+      final fileName = 'report_${startDate}_to_${endDate}.csv';
+      String? filePath;
+
       try {
-        final fileName = 'report_${startDate}_to_${endDate}.pdf';
-        String? filePath;
-
-        if (Platform.isAndroid) {
-          filePath = await FilePicker.platform.saveFile(
-            dialogTitle: 'Save PDF',
-            fileName: fileName,
-            bytes: pdfResponse.bodyBytes,
-          );
-        } else if (Platform.isIOS) {
+        if (Platform.isAndroid || Platform.isIOS) {
           final directory = await getApplicationDocumentsDirectory();
           filePath = '${directory.path}/$fileName';
           final file = File(filePath);
-          await file.writeAsBytes(pdfResponse.bodyBytes);
+          await file.writeAsBytes(bytes);
         } else {
           throw Exception('Unsupported platform');
         }
 
         if (filePath != null) {
-          if (Platform.isIOS) {
-            final file = File(filePath);
-            if (!await file.exists()) {
-              throw Exception('File was not saved properly');
-            }
+          final file = File(filePath);
+          if (!await file.exists()) {
+            throw Exception('File was not saved properly');
           }
 
+          print('Saving CSV to: $filePath');
           emit(state.copyWith(
             status: ReportStatus.success,
-            reportData: reportData, // Set reportData
+            reportData: reportData,
           ));
 
+          // Share the file
+          print('Sharing CSV file: $filePath');
           await Share.shareXFiles(
             [XFile(filePath)],
-            text: 'Report Downloaded to $filePath',
+            text: 'CSV Report Downloaded to $filePath',
           );
         } else {
+          print('File path is null');
           emit(state.copyWith(
             status: ReportStatus.failure,
+            errorMessage: 'Failed to save CSV file',
           ));
         }
-      } catch (e) {          emit(state.copyWith(
-            status: ReportStatus.failure,
-          ));
+      } catch (e) {
+        print('CSV save/share error: $e');
+        emit(state.copyWith(
+          status: ReportStatus.failure,
+          errorMessage: 'Error saving CSV: $e',
+        ));
+
+        // Show a snackbar to inform the user
+        ScaffoldMessenger.of(event.context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save CSV: $e'),
+            action: Platform.isAndroid
+                ? SnackBarAction(
+                    label: 'Settings',
+                    onPressed: () => openAppSettings(),
+                  )
+                : null,
+          ),
+        );
       }
-    } else {
+    } catch (e) {
+      print('CSV download error: $e');
       emit(state.copyWith(
         status: ReportStatus.failure,
+        errorMessage: 'Error downloading CSV: $e',
       ));
+
+      ScaffoldMessenger.of(event.context).showSnackBar(
+        SnackBar(content: Text('Error downloading CSV: $e')),
+      );
     }
-  } catch (e) {      emit(state.copyWith(
-        status: ReportStatus.failure,
-      ));
   }
-}}
+}
 
 // UI Page
 class ReportsPage extends StatelessWidget {
@@ -534,6 +732,8 @@ class _ReportsView extends StatelessWidget {
 }
 
 class _DateSelectionSection extends StatelessWidget {
+  const _DateSelectionSection({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<ReportBloc>().state;
@@ -565,7 +765,8 @@ class _DateSelectionSection extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
               'Select Date Range',
@@ -588,39 +789,59 @@ class _DateSelectionSection extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      context.read<ReportBloc>().add(ReportFetched());
-                    },
+            ElevatedButton(
+              onPressed: () {
+                context.read<ReportBloc>().add(ReportFetched());
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).primaryColor,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Generate Report'),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: state.startDate != null && state.endDate != null
+                  ? () => context.read<ReportBloc>().add(DownloadPdf(context: context))
+                  : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).primaryColor,
+                foregroundColor: Colors.white,
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.picture_as_pdf),
+                  SizedBox(width: 8),
+                  Text('Download PDF'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            FutureBuilder<SharedPreferences>(
+              future: SharedPreferences.getInstance(),
+              builder: (context, snapshot) {
+                if (snapshot.hasData && snapshot.data!.getInt('role') == 1) {
+                  return ElevatedButton(
+                    onPressed: state.startDate != null && state.endDate != null
+                        ? () => context.read<ReportBloc>().add(DownloadCsv(context: context))
+                        : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).primaryColor,
                       foregroundColor: Colors.white,
                     ),
-                    child: const Text('Generate Report'),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                ElevatedButton(
-                  onPressed: state.startDate != null && state.endDate != null
-                      ? () => context.read<ReportBloc>().add(DownloadPdf(context: context))
-                      : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).primaryColor,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.picture_as_pdf),
-                      SizedBox(width: 8),
-                      Text('Download PDF'),
-                    ],
-                  ),
-                ),
-              ],
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.file_download),
+                        SizedBox(width: 8),
+                        Text('Download CSV'),
+                      ],
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
             ),
           ],
         ),
@@ -628,7 +849,10 @@ class _DateSelectionSection extends StatelessWidget {
     );
   }
 }
+
 class _ReportContent extends StatelessWidget {
+  const _ReportContent({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<ReportBloc>().state;
@@ -639,7 +863,7 @@ class _ReportContent extends StatelessWidget {
       case ReportStatus.loading:
         return const Center(child: CircularProgressIndicator());
       case ReportStatus.failure:
-        return const Center(child: Text('Select dates and generate report'));
+        return Center(child: Text(state.errorMessage ?? 'Select dates and generate report'));
       case ReportStatus.success:
         return Expanded(
           child: DefaultTabController(
@@ -676,7 +900,7 @@ class _ReportContent extends StatelessWidget {
 class _ChemicalLogsTab extends StatelessWidget {
   final List<ChemicalLog> logs;
 
-  const _ChemicalLogsTab({required this.logs});
+  const _ChemicalLogsTab({Key? key, required this.logs}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -715,20 +939,7 @@ class _ChemicalLogsTab extends StatelessWidget {
 class _EquipmentLogsTab extends StatelessWidget {
   final List<EquipmentLog> logs;
 
-  const _EquipmentLogsTab({required this.logs});
-
-  String _getStatusText(int status) {
-    switch (status) {
-      case 0:
-        return 'Working';
-      case 1:
-        return 'Not Working';
-      case 2:
-        return 'Under Maintenance';
-      default:
-        return 'Unknown';
-    }
-  }
+  const _EquipmentLogsTab({Key? key, required this.logs}) : super(key: key);
 
   Color _getStatusColor(int status) {
     switch (status) {
@@ -740,6 +951,19 @@ class _EquipmentLogsTab extends StatelessWidget {
         return Colors.orange;
       default:
         return Colors.grey;
+    }
+  }
+
+  String _getStatusText(int status) {
+    switch (status) {
+      case 0:
+        return 'Working';
+      case 1:
+        return 'Not Working';
+      case 2:
+        return 'Under Maintenance';
+      default:
+        return 'Unknown';
     }
   }
 
@@ -784,7 +1008,7 @@ class _EquipmentLogsTab extends StatelessWidget {
 class _FlowParameterLogsTab extends StatelessWidget {
   final List<FlowParameterLog> logs;
 
-  const _FlowParameterLogsTab({required this.logs});
+  const _FlowParameterLogsTab({Key? key, required this.logs}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -818,7 +1042,7 @@ class _FlowParameterLogsTab extends StatelessWidget {
 class _FlowLogsTab extends StatelessWidget {
   final List<FlowLog> logs;
 
-  const _FlowLogsTab({required this.logs});
+  const _FlowLogsTab({Key? key, required this.logs}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {

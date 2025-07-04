@@ -31,10 +31,18 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
         roleId: event.roleId,
       );
 
-      if (result != null && !result.contains("error") && !result.contains("failed")) {
-        emit(RegistrationSuccessState(token: result));
+      if (result != null) {
+        if (result.startsWith("SUCCESS:")) {
+          String token = result.substring(8); // Remove "SUCCESS:" prefix
+          emit(RegistrationSuccessState(token: token));
+        } else if (result.startsWith("ERROR:")) {
+          String errorMessage = result.substring(6); // Remove "ERROR:" prefix
+          emit(RegistrationFailedState(message: errorMessage));
+        } else {
+          emit(RegistrationFailedState(message: 'Invalid response format'));
+        }
       } else {
-        emit(RegistrationFailedState(message: result ?? 'Registration failed'));
+        emit(RegistrationFailedState(message: 'Registration failed'));
       }
     } catch (e) {
       emit(RegistrationFailedState(message: 'An error occurred: ${e.toString()}'));

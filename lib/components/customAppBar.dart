@@ -15,20 +15,24 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           onPressed: () => Scaffold.of(context).openDrawer(),
         ),
       ),
-      actions: [
-        IconButton(
-          icon: const Icon(
-            Icons.person,
-            color: AppColors.darkblue,
-          ),
-          onPressed: () {
-            Navigator.pushNamed(
-          context,
-          AppRoutes.profile
-        );
-          },
-        ),
-      ],
+     actions: [
+  IconButton(
+    icon: const Icon(
+      Icons.person,
+      color: AppColors.darkblue,
+    ),
+    onPressed: () {
+      // Get the current route name
+      final currentRoute = ModalRoute.of(context)?.settings.name;
+      
+      // Check if already on profile page or if profile page is in the stack
+      if (currentRoute != AppRoutes.profile && 
+          !Navigator.of(context).widget.pages.any((page) => page.name == AppRoutes.profile)) {
+        Navigator.pushNamed(context, AppRoutes.profile);
+      }
+    },
+  ),
+],
     );
   }
 
