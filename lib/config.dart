@@ -41,7 +41,7 @@ class AppConfig{
   static const String flowlog= '$baseUrl/api/v1/logs/flow';
   static const String parameterlog= '$baseUrl/api/v1/logs/flowparameter';
   static const String alllogs= '$baseUrl/api/v1/logs/all';
-  static const String pdf= '$baseUrl/api/v1/logs/report/pdf';
+  static const String pdf= '$baseUrl/api/v1/plant/report/pdf';
 //createlogs
   static const String equiplogadd= '$baseUrl/api/v1/logs/create/equipment';
   static const String chemicallogadd= '$baseUrl/api/v1/logs/create/chemical';

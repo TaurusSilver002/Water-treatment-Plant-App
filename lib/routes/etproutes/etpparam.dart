@@ -155,9 +155,9 @@ class _EtpParamState extends State<EtpParam> {
     print('Editing parameter ID: $paramId'); // Debug print
 
     final TextEditingController nameController = TextEditingController(text: parameterName);
-    // final TextEditingController unitController = TextEditingController(text: parameterUnit == 'N/A' ? '' : parameterUnit);
-    // final TextEditingController targetValueController = TextEditingController(text: targetValue == 'N/A' ? '' : targetValue);
-    // final TextEditingController toleranceController = TextEditingController(text: tolerance == 'N/A' ? '' : tolerance);
+    final TextEditingController unitController = TextEditingController(text:  parameterUnit);
+    final TextEditingController targetValueController = TextEditingController(text:  targetValue);
+    final TextEditingController toleranceController = TextEditingController(text: tolerance);
 
     showDialog(
       context: context,
@@ -173,22 +173,22 @@ class _EtpParamState extends State<EtpParam> {
                   decoration: const InputDecoration(labelText: 'Parameter Name'),
                 ),
                 const SizedBox(height: 16),
-                // TextField(
-                //   controller: unitController,
-                //   decoration: const InputDecoration(labelText: 'Parameter Unit'),
-                // ),
-                // const SizedBox(height: 16),
-                // TextField(
-                //   controller: targetValueController,
-                //   decoration: const InputDecoration(labelText: 'Target Value'),
-                //   keyboardType: TextInputType.number,
-                // ),
-                // const SizedBox(height: 16),
-                // TextField(
-                //   controller: toleranceController,
-                //   decoration: const InputDecoration(labelText: 'Tolerance'),
-                //   keyboardType: TextInputType.number,
-                // ),
+                TextField(
+                  controller: unitController,
+                  decoration: const InputDecoration(labelText: 'Parameter Unit'),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: targetValueController,
+                  decoration: const InputDecoration(labelText: 'Target Value'),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: toleranceController,
+                  decoration: const InputDecoration(labelText: 'Tolerance'),
+                  keyboardType: TextInputType.number,
+                ),
               ],
             ),
             actions: [
@@ -199,17 +199,19 @@ class _EtpParamState extends State<EtpParam> {
               TextButton(
                 onPressed: () async {
                   if (nameController.text.isNotEmpty 
-                  // &&
-                  //     unitController.text.isNotEmpty &&
-                  //     targetValueController.text.isNotEmpty &&
-                  //     toleranceController.text.isNotEmpty
+                  &&
+                      unitController.text.isNotEmpty &&
+                      targetValueController.text.isNotEmpty &&
+                      toleranceController.text.isNotEmpty
                       ) {
                     try {
                       await PlantParamRepository().editparameter(
-                        plant_flow_parameter_id: paramId,
-                        parameter_name: nameController.text,
-                      
-                      );
+                      plant_flow_parameter_id: paramId,
+                      parameter_name: nameController.text,
+                      parameter_unit: unitController.text,
+                      target_value: double.tryParse(targetValueController.text.split(' ').first) ?? 0.0,
+                      tolerance: double.tryParse(toleranceController.text.split(' ').first) ?? 0.0,
+                    );
                       _plantparamBloc.add(FetchPlantparam());
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(

@@ -120,8 +120,9 @@ class PlantParamRepository {
 Future<Map<String, dynamic>> editparameter({
   required int plant_flow_parameter_id,
   String? parameter_name,
-  
- 
+  String? parameter_unit,
+  double? target_value,
+  double? tolerance,
 }) async {
   final token = await _getToken();
   if (token == null) {
@@ -129,15 +130,16 @@ Future<Map<String, dynamic>> editparameter({
   }
 
   final Map<String, dynamic> data = {
-    'plant_flow_parameter_id': plant_flow_parameter_id,
+    'plant_flow_parameter_id': plant_flow_parameter_id, 
   };
-  if (plant_flow_parameter_id != null) data['plant_flow_parameter_id'] = plant_flow_parameter_id;
   if (parameter_name != null) data['parameter_name'] = parameter_name;
-
+  if (parameter_unit != null) data['parameter_unit'] = parameter_unit;
+  if (target_value != null) data['target_value'] = target_value;
+  if (tolerance != null) data['tolerance'] = tolerance;
 
   try {
     final response = await dio.put(
-      '${AppConfig.plantparamedit}',
+      AppConfig.plantparamedit,
       data: data,
       options: Options(
         headers: {

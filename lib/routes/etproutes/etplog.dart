@@ -40,9 +40,9 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   int _selectedTab = 0; // 0=Equipment, 1=Chemical, 2=Flow, 3=Parameter
   int? _userRole;
-  List<Map<String, dynamic>> _equipmentList = []; // Store equipment list
-  List<Map<String, dynamic>> _chemicalList = []; // Store chemical list
-  List<Map<String, dynamic>> _parameterList = []; // Store parameter list
+  List<Map<String, dynamic>> _equipmentList = [];
+  List<Map<String, dynamic>> _chemicalList = [];
+  List<Map<String, dynamic>> _parameterList = [];
 
   @override
   void initState() {
@@ -70,15 +70,15 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
   Future<void> _loadInitialData() async {
     if (_selectedTab == 0) {
       _equipmentBloc.add(FetchEquipment());
-      await _fetchEquipmentList(); // Load equipment list for dropdown
+      await _fetchEquipmentList();
     } else if (_selectedTab == 1) {
-      await _fetchChemicalList(); // Load chemical list for dropdown first
-      _chemicallogBloc.add(FetchChemicallog()); // Then fetch chemical logs
+      await _fetchChemicalList();
+      _chemicallogBloc.add(FetchChemicallog());
     } else if (_selectedTab == 2) {
       _flowlogBloc.add(FetchFlowlog());
     } else if (_selectedTab == 3) {
       _parameterlogBloc.add(FetchParameterlog());
-      await _fetchParameterList(); // Load parameter list for dropdown
+      await _fetchParameterList();
     }
   }
 
@@ -126,11 +126,11 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
       final response = await repo.fetchPlantChemicals();
       setState(() {
         _chemicalList = response.map((item) => {
-          'name': item['chemical_name'] ?? 'Unknown',
-          'plant_chemical_id': item['plant_chemical_id'] ?? 0,
-          'quantity': item['quantity'],
-          'chemical_unit': item['chemical_unit'],
-        }).toList();
+              'name': item['chemical_name'] ?? 'Unknown',
+              'plant_chemical_id': item['plant_chemical_id'] ?? 0,
+              'quantity': item['quantity'],
+              'chemical_unit': item['chemical_unit'],
+            }).toList();
       });
     } catch (e) {
       print('Error fetching chemical list: $e');
@@ -148,12 +148,12 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
       final response = await repo.fetchPlantParams();
       setState(() {
         _parameterList = response.map((item) => {
-          'name': item['parameter_name'] ?? 'Unknown',
-          'plant_flow_parameter_id': item['plant_flow_parameter_id'],
-          'target_value': item['target_value'],
-          'tolerance': item['tolerance'],
-          'unit': item['parameter_unit'],
-        }).toList();
+              'name': item['parameter_name'] ?? 'Unknown',
+              'plant_flow_parameter_id': item['plant_flow_parameter_id'],
+              'target_value': item['target_value'],
+              'tolerance': item['tolerance'],
+              'unit': item['parameter_unit'],
+            }).toList();
       });
     } catch (e) {
       print('Error fetching parameter list: $e');
@@ -169,33 +169,28 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
     showDialog(
       context: context,
       builder: (dialogContext) {
-        // State for dialog fields
         int selectedEquipmentId = 0;
-        int selectedStatus = 0; // 0=OK, 1=Warning, 2=Critical
+        int selectedStatus = 0;
         bool selectedMaintenanceDone = true;
         String selectedRemark = '';
         int selectedShift = 1;
-        // --- Chemical log fields ---
         int selectedChemicalId = 0;
         String selectedQuantityUsed = '';
         String selectedQuantityLeft = '';
         bool selectedSludgeDischarge = false;
         int selectedChemicalShift = 1;
-        // --- Flow log fields ---
         String selectedInletValue = '';
         String selectedOutletValue = '';
         String? inletImageBase64;
         String? outletImageBase64;
         int selectedFlowShift = 1;
         String? errorText;
-        // --- Parameter log fields ---
         int selectedParameterId = 0;
         String selectedParameterValue = '';
         int selectedParameterShift = 1;
 
         Future<void> pickImage(bool isInlet) async {
           final ImagePicker picker = ImagePicker();
-          // Show dialog to choose camera or gallery
           final source = await showDialog<ImageSource>(
             context: context,
             builder: (context) => AlertDialog(
@@ -218,9 +213,9 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
           try {
             final XFile? image = await picker.pickImage(
               source: source,
-              maxWidth: 800, // Resize to reduce size
+              maxWidth: 800,
               maxHeight: 800,
-              imageQuality: 75, // Compress to balance quality and size
+              imageQuality: 75,
             );
 
             if (image != null) {
@@ -229,12 +224,11 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
               setState(() {
                 if (isInlet) {
                   inletImageBase64 = base64Image;
-                  errorText = null; // Clear any previous errors
+                  errorText = null;
                 } else {
                   outletImageBase64 = base64Image;
                   errorText = null;
                 }
-                // Log size for debugging
                 print('Base64 ${isInlet ? "inlet" : "outlet"} image size: ${base64Image.length} bytes');
               });
             }
@@ -476,8 +470,6 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
                         setState(() => errorText = 'Please enter quantity used.');
                         return;
                       }
-                      // Validate that incomming_quantity is a valid double if provided
-                      // Only include incomming_quantity if a valid value is provided
                       if (selectedQuantityLeft.isNotEmpty && double.tryParse(selectedQuantityLeft) == null) {
                         setState(() => errorText = 'Incoming Quantity must be a valid number.');
                         return;
@@ -519,19 +511,11 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
                         setState(() => errorText = 'Please select a parameter.');
                         return;
                       }
-                      if (selectedParameterValue.isEmpty) {
-                        setState(() => errorText = 'Please enter an inlet value for the parameter.');
-                        return;
-                      }
-                      if (selectedOutletValue.isEmpty) {
-                        setState(() => errorText = 'Please enter an outlet value for the parameter.');
-                        return;
-                      }
-                      final entry = {
+                      final entry = <String, dynamic>{
                         'plant_id': plantId,
                         'plant_flow_parameter_id': selectedParameterId,
-                        'value': selectedParameterValue,
-                        'outlet_value': selectedOutletValue,
+                        if (selectedParameterValue.isNotEmpty) 'value': selectedParameterValue,
+                        if (selectedOutletValue.isNotEmpty) 'outlet_value': selectedOutletValue,
                         'shift': selectedParameterShift,
                       };
                       _addParameterLogEntry(entry);
@@ -792,7 +776,6 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
   }
 
   Widget _buildEditButton(Map<String, String> entry) {
-    // Only show buttons if user is not role_id 2
     if (_userRole == 2) return const SizedBox.shrink();
 
     return Align(
@@ -807,7 +790,10 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
               backgroundColor: AppColors.yellowochre,
               foregroundColor: AppColors.darkblue,
             ),
-            onPressed: () => _showEditDialog(entry),
+            onPressed: () {
+              print('Edit button pressed for entry: $entry');
+              _showEditDialog(entry);
+            },
           ),
           if (_selectedTab == 0) ...[
             const SizedBox(width: 8),
@@ -851,7 +837,6 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
 
                 if (confirm != true) return;
 
-                // Show loading indicator
                 showDialog(
                   context: context,
                   barrierDismissible: false,
@@ -861,11 +846,9 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
                 );
 
                 try {
-                  // Call delete method
                   final repository = EquipmentRepository();
                   final success = await repository.deleteEquipmentLog(logId);
 
-                  // Hide loading indicator
                   if (mounted && Navigator.canPop(context)) {
                     Navigator.pop(context);
                   }
@@ -879,13 +862,11 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
                         backgroundColor: Colors.green,
                       ),
                     );
-                    // Refresh equipment logs
                     _equipmentBloc.add(FetchEquipment());
                   } else {
                     throw Exception('Failed to delete equipment log');
                   }
                 } catch (e) {
-                  // Hide loading indicator if it's still showing
                   if (mounted && Navigator.canPop(context)) {
                     Navigator.pop(context);
                   }
@@ -944,7 +925,6 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
 
                 if (confirm != true) return;
 
-                // Show loading indicator
                 showDialog(
                   context: context,
                   barrierDismissible: false,
@@ -954,11 +934,9 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
                 );
 
                 try {
-                  // Call delete method
                   final repository = ChemicalLogRepository();
                   final success = await repository.deleteChemicalLog(logId);
 
-                  // Hide loading indicator
                   if (mounted && Navigator.canPop(context)) {
                     Navigator.pop(context);
                   }
@@ -972,13 +950,11 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
                         backgroundColor: Colors.green,
                       ),
                     );
-                    // Refresh chemical logs
                     _chemicallogBloc.add(FetchChemicallog());
                   } else {
                     throw Exception('Failed to delete chemical log');
                   }
                 } catch (e) {
-                  // Hide loading indicator if it's still showing
                   if (mounted && Navigator.canPop(context)) {
                     Navigator.pop(context);
                   }
@@ -1037,7 +1013,6 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
 
                 if (confirm != true) return;
 
-                // Show loading indicator
                 showDialog(
                   context: context,
                   barrierDismissible: false,
@@ -1047,11 +1022,9 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
                 );
 
                 try {
-                  // Call delete method
                   final repository = FlowLogRepository();
                   final success = await repository.deleteFlowLog(logId);
 
-                  // Hide loading indicator
                   if (mounted && Navigator.canPop(context)) {
                     Navigator.pop(context);
                   }
@@ -1065,13 +1038,11 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
                         backgroundColor: Colors.green,
                       ),
                     );
-                    // Refresh flow logs
                     _flowlogBloc.add(FetchFlowlog());
                   } else {
                     throw Exception('Failed to delete flow log');
                   }
                 } catch (e) {
-                  // Hide loading indicator if it's still showing
                   if (mounted && Navigator.canPop(context)) {
                     Navigator.pop(context);
                   }
@@ -1130,7 +1101,6 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
 
                 if (confirm != true) return;
 
-                // Show loading indicator
                 showDialog(
                   context: context,
                   barrierDismissible: false,
@@ -1140,11 +1110,9 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
                 );
 
                 try {
-                  // Call delete method
                   final repository = ParameterLogRepository();
                   final success = await repository.deleteParameterLog(logId);
 
-                  // Hide loading indicator
                   if (mounted && Navigator.canPop(context)) {
                     Navigator.pop(context);
                   }
@@ -1158,13 +1126,11 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
                         backgroundColor: Colors.green,
                       ),
                     );
-                    // Refresh parameter logs
                     _parameterlogBloc.add(FetchParameterlog());
                   } else {
                     throw Exception('Failed to delete parameter log');
                   }
                 } catch (e) {
-                  // Hide loading indicator if it's still showing
                   if (mounted && Navigator.canPop(context)) {
                     Navigator.pop(context);
                   }
@@ -1186,198 +1152,229 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
     );
   }
 
-  void _showEditDialog(Map<String, String> entry) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        // Extract current values from entry
-        int statusVal = _statusStringToInt(entry['status'] ?? 'OK');
-        bool maintenanceVal = (entry['maintenance'] == 'Done');
-        int shiftVal = int.tryParse(entry['shift'] ?? '') ?? 1;
-        // Defensive: ensure statusVal and shiftVal are valid
-        final statusOptions = [0, 1, 2];
-        final shiftOptions = [1, 2, 3];
-        if (!statusOptions.contains(statusVal)) statusVal = 0;
-        if (!shiftOptions.contains(shiftVal)) shiftVal = 1;
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: const Text('Edit Log Entry'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_selectedTab == 0) ...[
-                    DropdownButtonFormField<int>(
-                      value: statusVal,
-                      items: const [
-                        DropdownMenuItem(value: 0, child: Text('OK')),
-                        DropdownMenuItem(value: 1, child: Text('Warning')),
-                        DropdownMenuItem(value: 2, child: Text('Critical')),
-                      ],
-                      onChanged: (val) => setState(() {
-                        statusVal = val ?? 0;
-                      }),
-                      decoration: const InputDecoration(labelText: 'Equipment Status'),
-                    ),
-                    SwitchListTile(
-                      title: const Text('Maintenance Done'),
-                      value: maintenanceVal,
-                      onChanged: (val) => setState(() => maintenanceVal = val),
-                    ),
-                    DropdownButtonFormField<int>(
-                      value: shiftVal,
-                      items: const [
-                        DropdownMenuItem(value: 1, child: Text('1')),
-                        DropdownMenuItem(value: 2, child: Text('2')),
-                        DropdownMenuItem(value: 3, child: Text('3')),
-                      ],
-                      onChanged: (val) => setState(() => shiftVal = val ?? 1),
-                      decoration: const InputDecoration(labelText: 'Shift'),
-                    ),
-                  ] else if (_selectedTab == 1) ...[
-                    TextFormField(
-                      initialValue: entry['quantity_used'],
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Quantity Used'),
-                      onChanged: (val) => setState(() => entry['quantity_used'] = val),
-                    ),
-                    TextFormField(
-                      initialValue: entry['incomming_quantity'],
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Incoming Quantity'),
-                      onChanged: (val) => setState(() => entry['incomming_quantity'] = val),
-                    ),
-                    SwitchListTile(
-                      title: const Text('Sludge Discharge'),
-                      value: (entry['sludge_discharge'] == 'true'),
-                      onChanged: (val) => setState(() => entry['sludge_discharge'] = val.toString()),
-                    ),
-                    DropdownButtonFormField<int>(
-                      value: shiftVal,
-                      items: const [
-                        DropdownMenuItem(value: 1, child: Text('1')),
-                        DropdownMenuItem(value: 2, child: Text('2')),
-                        DropdownMenuItem(value: 3, child: Text('3')),
-                      ],
-                      onChanged: (val) => setState(() => shiftVal = val ?? 1),
-                      decoration: const InputDecoration(labelText: 'Shift'),
-                    ),
-                  ] else if (_selectedTab == 2) ...[
-                    TextFormField(
-                      initialValue: entry['inlet'],
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Inlet Value'),
-                      onChanged: (val) => setState(() => entry['inlet'] = val),
-                    ),
-                    TextFormField(
-                      initialValue: entry['outlet'],
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Outlet Value'),
-                      onChanged: (val) => setState(() => entry['outlet'] = val),
-                    ),
-                    DropdownButtonFormField<int>(
-                      value: shiftVal,
-                      items: const [
-                        DropdownMenuItem(value: 1, child: Text('1')),
-                        DropdownMenuItem(value: 2, child: Text('2')),
-                        DropdownMenuItem(value: 3, child: Text('3')),
-                      ],
-                      onChanged: (val) => setState(() => shiftVal = val ?? 1),
-                      decoration: const InputDecoration(labelText: 'Shift'),
-                    ),
-                  ] else if (_selectedTab == 3) ...[
-                    TextFormField(
-                      initialValue: entry['value'],
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Value'),
-                      onChanged: (val) => setState(() => entry['value'] = val),
-                    ),
-                    DropdownButtonFormField<int>(
-                      value: shiftVal,
-                      items: const [
-                        DropdownMenuItem(value: 1, child: Text('1')),
-                        DropdownMenuItem(value: 2, child: Text('2')),
-                        DropdownMenuItem(value: 3, child: Text('3')),
-                      ],
-                      onChanged: (val) => setState(() => shiftVal = val ?? 1),
-                      decoration: const InputDecoration(labelText: 'Shift'),
-                    ),
-                  ],
+void _showEditDialog(Map<String, String> entry) {
+  showDialog(
+    context: context,
+    builder: (context) {
+      int statusVal = _statusStringToInt(entry['status'] ?? 'OK');
+      bool maintenanceVal = (entry['maintenance'] == 'Done');
+      int shiftVal = int.tryParse(entry['shift'] ?? '') ?? 1;
+      final statusOptions = [0, 1, 2];
+      final shiftOptions = [1, 2, 3];
+      if (!statusOptions.contains(statusVal)) statusVal = 0;
+      if (!shiftOptions.contains(shiftVal)) shiftVal = 1;
+
+      final valueController = TextEditingController(text: entry['value']);
+      final outletValueController = TextEditingController(text: entry['outlet_value']);
+
+      return StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('Edit Log Entry'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_selectedTab == 0) ...[
+                  DropdownButtonFormField<int>(
+                    value: statusVal,
+                    items: const [
+                      DropdownMenuItem(value: 0, child: Text('OK')),
+                      DropdownMenuItem(value: 1, child: Text('Warning')),
+                      DropdownMenuItem(value: 2, child: Text('Critical')),
+                    ],
+                    onChanged: (val) => setState(() {
+                      statusVal = val ?? 0;
+                    }),
+                    decoration: const InputDecoration(labelText: 'Equipment Status'),
+                  ),
+                  SwitchListTile(
+                    title: const Text('Maintenance Done'),
+                    value: maintenanceVal,
+                    onChanged: (val) => setState(() => maintenanceVal = val),
+                  ),
+                  DropdownButtonFormField<int>(
+                    value: shiftVal,
+                    items: const [
+                      DropdownMenuItem(value: 1, child: Text('1')),
+                      DropdownMenuItem(value: 2, child: Text('2')),
+                      DropdownMenuItem(value: 3, child: Text('3')),
+                    ],
+                    onChanged: (val) => setState(() => shiftVal = val ?? 1),
+                    decoration: const InputDecoration(labelText: 'Shift'),
+                  ),
+                ] else if (_selectedTab == 1) ...[
+                  TextFormField(
+                    initialValue: entry['quantity_used'],
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Quantity Used'),
+                    onChanged: (val) => setState(() => entry['quantity_used'] = val),
+                  ),
+                  TextFormField(
+                    initialValue: entry['incomming_quantity'],
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Incoming Quantity'),
+                    onChanged: (val) => setState(() => entry['incomming_quantity'] = val),
+                  ),
+                  SwitchListTile(
+                    title: const Text('Sludge Discharge'),
+                    value: (entry['sludge_discharge'] == 'true'),
+                    onChanged: (val) => setState(() => entry['sludge_discharge'] = val.toString()),
+                  ),
+                  DropdownButtonFormField<int>(
+                    value: shiftVal,
+                    items: const [
+                      DropdownMenuItem(value: 1, child: Text('1')),
+                      DropdownMenuItem(value: 2, child: Text('2')),
+                      DropdownMenuItem(value: 3, child: Text('3')),
+                    ],
+                    onChanged: (val) => setState(() => shiftVal = val ?? 1),
+                    decoration: const InputDecoration(labelText: 'Shift'),
+                  ),
+                ] else if (_selectedTab == 2) ...[
+                  TextFormField(
+                    initialValue: entry['inlet'],
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Inlet Value'),
+                    onChanged: (val) => setState(() => entry['inlet'] = val),
+                  ),
+                  TextFormField(
+                    initialValue: entry['outlet'],
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Outlet Value'),
+                    onChanged: (val) => setState(() => entry['outlet'] = val),
+                  ),
+                  DropdownButtonFormField<int>(
+                    value: shiftVal,
+                    items: const [
+                      DropdownMenuItem(value: 1, child: Text('1')),
+                      DropdownMenuItem(value: 2, child: Text('2')),
+                      DropdownMenuItem(value: 3, child: Text('3')),
+                    ],
+                    onChanged: (val) => setState(() => shiftVal = val ?? 1),
+                    decoration: const InputDecoration(labelText: 'Shift'),
+                  ),
+                ] 
+                else if (_selectedTab == 3) ...[
+                  TextFormField(
+                    controller: valueController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Value'),
+                  ),
+                  TextFormField(
+                    controller: outletValueController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Outlet Value'),
+                  ),
+                  DropdownButtonFormField<int>(
+                    value: shiftVal,
+                    items: const [
+                      DropdownMenuItem(value: 1, child: Text('1')),
+                      DropdownMenuItem(value: 2, child: Text('2')),
+                      DropdownMenuItem(value: 3, child: Text('3')),
+                    ],
+                    onChanged: (val) => setState(() => shiftVal = val ?? 1),
+                    decoration: const InputDecoration(labelText: 'Shift'),
+                  ),
                 ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () async {
-                    try {
-                      if (_selectedTab == 0) {
-                        final equipmentLogId = _extractEquipmentLogId(entry['name'] ?? '');
-                        if (equipmentLogId != null) {
-                          await EquipmentRepository().editEquipmentLog(
-                            equipmentLogId: equipmentLogId,
-                            equipmentStatus: statusVal,
-                            maintenanceDone: maintenanceVal,
-                            shift: shiftVal,
-                          );
-                          _equipmentBloc.add(FetchEquipment());
-                        }
-                      } else if (_selectedTab == 1) {
-                        final chemicalLogId = int.tryParse(entry['chemical_log_id'] ?? '');
-                        if (chemicalLogId != null) {
-                          await ChemicalLogRepository().editChemicalLog(
-                            chemicalLogId: chemicalLogId,
-                            quantityUsed: double.tryParse(entry['quantity_used'] ?? '') ?? 0,
-                            quantityLeft: double.tryParse(entry['incomming_quantity'] ?? '') ?? 0,
-                            sludgeDischarge: (entry['sludge_discharge'] == 'true'),
-                            shift: shiftVal,
-                          );
-                          _chemicallogBloc.add(FetchChemicallog());
-                        }
-                      } else if (_selectedTab == 2) {
-                        final flowLogId = _extractFlowLogId(entry['name'] ?? '');
-                        if (flowLogId != null) {
-                          await FlowLogRepository().editFlowLog(
-                            flowLogId: flowLogId,
-                            inletValue: double.tryParse(entry['inlet'] ?? '') ?? 0,
-                            outletValue: double.tryParse(entry['outlet'] ?? '') ?? 0,
-                            shift: shiftVal,
-                          );
-                          _flowlogBloc.add(FetchFlowlog());
-                        }
-                      } else if (_selectedTab == 3) {
-                        final paramLogId = _extractParameterLogId(entry['name'] ?? '');
-                        if (paramLogId != null) {
-                          await ParameterLogRepository().editParameterLog(
-                            flowParameterLogId: paramLogId,
-                            value: double.tryParse(entry['value'] ?? '') ?? 0,
-                            shift: shiftVal,
-                          );
-                          _parameterlogBloc.add(FetchParameterlog());
-                        }
-                      }
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Log entry updated')),
-                      );
-                    } catch (e) {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Failed to update: $e')),
-                      );
-                    }
-                  },
-                  child: const Text('Done'),
-                ),
               ],
-            );
-          },
-        );
-      },
-    );
-  }
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  try {
+                    if (_selectedTab == 0) {
+                      final equipmentLogId = int.tryParse(entry['equipment_log_id'] ?? '');
+                      if (equipmentLogId != null) {
+                        await EquipmentRepository().editEquipmentLog(
+                          equipmentLogId: equipmentLogId,
+                          equipmentStatus: statusVal,
+                          maintenanceDone: maintenanceVal,
+                          shift: shiftVal,
+                        );
+                        _equipmentBloc.add(FetchEquipment());
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Equipment log updated')),
+                        );
+                      } else {
+                        throw Exception('Invalid equipment log ID');
+                      }
+                    } else if (_selectedTab == 1) {
+                      final chemicalLogId = int.tryParse(entry['chemical_log_id'] ?? '');
+                      if (chemicalLogId != null) {
+                        await ChemicalLogRepository().editChemicalLog(
+                          chemicalLogId: chemicalLogId,
+                          quantityUsed: double.tryParse(entry['quantity_used'] ?? '') ?? 0,
+                          quantityLeft: double.tryParse(entry['incomming_quantity'] ?? '') ?? 0,
+                          sludgeDischarge: (entry['sludge_discharge'] == 'true'),
+                          shift: shiftVal,
+                        );
+                        _chemicallogBloc.add(FetchChemicallog());
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Chemical log updated')),
+                        );
+                      } else {
+                        throw Exception('Invalid chemical log ID');
+                      }
+                    } else if (_selectedTab == 2) {
+                      final flowLogId = int.tryParse(entry['flow_log_id'] ?? '');
+                      if (flowLogId != null) {
+                        await FlowLogRepository().editFlowLog(
+                          flowLogId: flowLogId,
+                          inletValue: double.tryParse(entry['inlet'] ?? '') ?? 0,
+                          outletValue: double.tryParse(entry['outlet'] ?? '') ?? 0,
+                          shift: shiftVal,
+                        );
+                        _flowlogBloc.add(FetchFlowlog());
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Flow log updated')),
+                        );
+                      } else {
+                        throw Exception('Invalid flow log ID');
+                      }
+                    } else if (_selectedTab == 3) {
+                      final paramLogId = int.tryParse(entry['flow_parameter_log_id'] ?? '');
+                      if (paramLogId != null) {
+                       double? value = double.tryParse(valueController.text.split(' ').first);
+double? outletValue = double.tryParse(outletValueController.text.split(' ').first);
+
+                        await ParameterLogRepository().editParameterLog(
+                          flowParameterLogId: paramLogId,
+                          value: value,
+                          outletValue: outletValue,
+                          shift: shiftVal,
+                        );
+                        _parameterlogBloc.add(FetchParameterlog());
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Parameter log updated')),
+                        );
+                      } else {
+                        throw Exception('Invalid parameter log ID');
+                      }
+                    }
+                  } catch (e) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed to update: $e')),
+                    );
+                  }
+                },
+                child: const Text('Done'),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
 
   Map<String, String> _mapBackendLogToEntry(dynamic log) {
     print('Mapping equipment log: $log');
@@ -1391,12 +1388,12 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
       'maintenance': (log['maintenance_done'] == true) ? 'Done' : 'Not Done',
       'shift': log['shift']?.toString() ?? 'N/A',
       'date': _formatDate(log['created_at'] ?? log['start_date'] ?? ''),
+      'remark': log['equipment_remark']?.toString() ?? 'N/A',
     };
   }
 
   Map<String, String> _mapBackendChemicalLogToEntry(dynamic log) {
     final createdAt = log['created_at'];
-    // Find the matching chemical from _chemicalList to get the name
     final chemicalId = log['plant_chemical_id'];
     final chemical = _chemicalList.firstWhere(
       (c) => c['plant_chemical_id'] == chemicalId,
@@ -1406,7 +1403,6 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
     try {
       final val = log['incomming_quantity'];
       if (val != null && val.toString().isNotEmpty) {
-        // Try to parse as double, fallback to string if fails
         final parsed = double.tryParse(val.toString());
         incommingQuantity = parsed != null ? parsed.toString() : val.toString();
       }
@@ -1510,63 +1506,74 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
       ];
     } else if (_selectedTab == 1) {
       return [
-        Text('Incoming Quantity: ${entry['incomming_quantity']}', style: const TextStyle(color: AppColors.cream)),
+        Text('Chemical Name: ${entry['name'] ?? 'N/A'}',
+            style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
-        Text('Quantity Used: ${entry['quantity_used']}', style: const TextStyle(color: AppColors.cream)),
+        Text('Incoming Quantity: ${entry['incomming_quantity']}',
+            style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
-        Text('Quantity Left: ${entry['quantity_left']}', style: const TextStyle(color: AppColors.cream)),
+        Text('Quantity Used: ${entry['quantity_used']}',
+            style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
-        Text('Sludge Discharge: ${entry['sludge_discharge']}', style: const TextStyle(color: AppColors.cream)),
+        Text('Quantity Left: ${entry['quantity_left']}',
+            style: const TextStyle(color: AppColors.cream)),
+        const SizedBox(height: 8),
+        Text('Sludge Discharge: ${entry['sludge_discharge']}',
+            style: const TextStyle(color: AppColors.cream)),
+        const SizedBox(height: 8),
+        Text('Shift: ${entry['shift']}',
+            style: const TextStyle(color: AppColors.cream)),
+        const SizedBox(height: 8),
+        Text('Date: ${entry['date']}',
+            style: const TextStyle(color: AppColors.cream)),
+      ];
+    } else if (_selectedTab == 2) {
+      final inletImage = entry['inlet_image'];
+      final outletImage = entry['outlet_image'];
+      return [
+        Text('Inlet: ${entry['inlet']}', style: const TextStyle(color: AppColors.cream)),
+        const SizedBox(height: 8),
+        if (inletImage != null && inletImage.isNotEmpty && inletImage != 'N/A') ...[
+          const Text('Inlet Image:', style: TextStyle(color: AppColors.cream)),
+          const SizedBox(height: 8),
+          CachedNetworkImage(
+            imageUrl: inletImage,
+            height: 100,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+            errorWidget: (context, url, error) => const Text('Error loading image', style: TextStyle(color: AppColors.cream)),
+          ),
+        ] else ...[
+          const Text('Inlet Image: Not available', style: TextStyle(color: AppColors.cream)),
+        ],
+        const SizedBox(height: 8),
+        Text('Outlet: ${entry['outlet']}', style: const TextStyle(color: AppColors.cream)),
+        const SizedBox(height: 8),
+        if (outletImage != null && outletImage.isNotEmpty && outletImage != 'N/A') ...[
+          const Text('Outlet Image:', style: TextStyle(color: AppColors.cream)),
+          const SizedBox(height: 8),
+          CachedNetworkImage(
+            imageUrl: outletImage,
+            height: 100,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+            errorWidget: (context, url, error) => const Text('Error loading image', style: TextStyle(color: AppColors.cream)),
+          ),
+        ] else ...[
+          const Text('Outlet Image: Not available', style: TextStyle(color: AppColors.cream)),
+        ],
         const SizedBox(height: 8),
         Text('Shift: ${entry['shift']}', style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
         Text('Date: ${entry['date']}', style: const TextStyle(color: AppColors.cream)),
       ];
-    } else if (_selectedTab == 2) {
-final inletImage = entry['inlet_image'];
-    final outletImage = entry['outlet_image'];
-    return [
-      Text('Inlet: ${entry['inlet']}', style: const TextStyle(color: AppColors.cream)),
-      const SizedBox(height: 8),
-      if (inletImage != null && inletImage.isNotEmpty && inletImage != 'N/A') ...[
-        const Text('Inlet Image:', style: TextStyle(color: AppColors.cream)),
-        const SizedBox(height: 8),
-        CachedNetworkImage(
-          imageUrl: inletImage,
-          height: 100,
-          width: double.infinity,
-          fit: BoxFit.cover,
-          placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-          errorWidget: (context, url, error) => const Text('Error loading image', style: TextStyle(color: AppColors.cream)),
-        ),
-      ] else ...[
-        const Text('Inlet Image: Not available', style: TextStyle(color: AppColors.cream)),
-      ],
-      const SizedBox(height: 8),
-      Text('Outlet: ${entry['outlet']}', style: const TextStyle(color: AppColors.cream)),
-      const SizedBox(height: 8),
-      if (outletImage != null && outletImage.isNotEmpty && outletImage != 'N/A') ...[
-        const Text('Outlet Image:', style: TextStyle(color: AppColors.cream)),
-        const SizedBox(height: 8),
-        CachedNetworkImage(
-          imageUrl: outletImage,
-          height: 100,
-          width: double.infinity,
-          fit: BoxFit.cover,
-          placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-          errorWidget: (context, url, error) => const Text('Error loading image', style: TextStyle(color: AppColors.cream)),
-        ),
-      ] else ...[
-        const Text('Outlet Image: Not available', style: TextStyle(color: AppColors.cream)),
-      ],
-      const SizedBox(height: 8),
-      Text('Shift: ${entry['shift']}', style: const TextStyle(color: AppColors.cream)),
-      const SizedBox(height: 8),
-      Text('Date: ${entry['date']}', style: const TextStyle(color: AppColors.cream)),
-    ];
-  }else {
-      // Default case for parameter logs
+    } else {
       return [
+        Text('Parameter Name: ${entry['name'] ?? 'N/A'}',
+            style: const TextStyle(color: AppColors.cream)),
+        const SizedBox(height: 8),
         Text('Inlet Value: ${entry['value'] ?? 'N/A'}',
             style: const TextStyle(color: AppColors.cream)),
         const SizedBox(height: 8),
@@ -1593,38 +1600,6 @@ final inletImage = entry['inlet_image'];
       default:
         return 0;
     }
-  }
-
-  int? _extractEquipmentLogId(String name) {
-    final match = RegExp(r'(\d+)').firstMatch(name);
-    if (match != null) {
-      return int.tryParse(match.group(1)!);
-    }
-    return null;
-  }
-
-  int? _extractChemicalLogId(String name) {
-    final match = RegExp(r'(\d+)').firstMatch(name);
-    if (match != null) {
-      return int.tryParse(match.group(1)!);
-    }
-    return null;
-  }
-
-  int? _extractFlowLogId(String name) {
-    final match = RegExp(r'(\d+)').firstMatch(name);
-    if (match != null) {
-      return int.tryParse(match.group(1)!);
-    }
-    return null;
-  }
-
-  int? _extractParameterLogId(String name) {
-    final match = RegExp(r'(\d+)').firstMatch(name);
-    if (match != null) {
-      return int.tryParse(match.group(1)!);
-    }
-    return null;
   }
 
   @override
