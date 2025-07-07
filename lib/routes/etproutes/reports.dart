@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -295,6 +296,9 @@ class DownloadCsv extends ReportEvent {
 }
 
 class ReportBloc extends Bloc<ReportEvent, ReportState> {
+  // Initialize Connectivity instance
+  final Connectivity _connectivity = Connectivity();
+
   ReportBloc() : super(ReportState()) {
     on<ReportDateSelected>(_onDateSelected);
     on<ReportFetched>(_onReportFetched);
@@ -332,6 +336,16 @@ class ReportBloc extends Bloc<ReportEvent, ReportState> {
       emit(state.copyWith(
         status: ReportStatus.failure,
         errorMessage: 'Please select start and end dates',
+      ));
+      return;
+    }
+
+    // Check network connectivity
+    var connectivityResult = await _connectivity.checkConnectivity();
+    if (connectivityResult == ConnectivityResult.none) {
+      emit(state.copyWith(
+        status: ReportStatus.failure,
+        errorMessage: 'No internet connection',
       ));
       return;
     }
@@ -379,7 +393,7 @@ class ReportBloc extends Bloc<ReportEvent, ReportState> {
           errorMessage: null,
         ));
       } else {
-        print('Report fetch failed: ${response.statusCode}');
+        print('Report fetch failed: ${response.statusCode}, body: ${response.body}');
         emit(state.copyWith(
           status: ReportStatus.failure,
           errorMessage: 'Failed to fetch report: ${response.statusCode}',
@@ -394,305 +408,258 @@ class ReportBloc extends Bloc<ReportEvent, ReportState> {
     }
   }
 
-  Future<void> _onDownloadPdf(DownloadPdf event, Emitter<ReportState> emit) async {
-    if (state.startDate == null || state.endDate == null) {
-      emit(state.copyWith(
-        status: ReportStatus.failure,
-        errorMessage: 'Please select start and end dates',
-      ));
-      return;
-    }
-
-    emit(state.copyWith(status: ReportStatus.loading));
-
-    try {
-      final token = await _getToken();
-      if (token == null) {
-        emit(state.copyWith(
-          status: ReportStatus.failure,
-          errorMessage: 'Authentication token not found',
-        ));
-        return;
-      }
-
-      final prefs = await SharedPreferences.getInstance();
-      final plantId = prefs.getInt('plant_id');
-      if (plantId == null) {
-        emit(state.copyWith(
-          status: ReportStatus.failure,
-          errorMessage: 'Plant ID not found',
-        ));
-        return;
-      }
-
-      final startDate = DateFormat('yyyy-MM-dd').format(state.startDate!);
-      final endDate = DateFormat('yyyy-MM-dd').format(state.endDate!);
-
-      final reportResponse = await http.post(
-        Uri.parse(AppConfig.alllogs),
-        headers: <String, String>{
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode(<String, dynamic>{
-          'plant_id': plantId,
-          'start_date': startDate,
-          'end_date': endDate,
-        }),
-      );
-
-      ReportData? reportData;
-      if (reportResponse.statusCode == 200) {
-        reportData = ReportData.fromJson(json.decode(reportResponse.body));
-      } else {
-        emit(state.copyWith(
-          status: ReportStatus.failure,
-          errorMessage: 'Failed to fetch report data: ${reportResponse.statusCode}',
-        ));
-        return;
-      }
-
-      final url = Uri.parse('${AppConfig.pdf}?plant_id=$plantId&start_date=$startDate&end_date=$endDate');
-      final pdfResponse = await http.get(
-        url,
-        headers: <String, String>{
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-      if (pdfResponse.statusCode == 200) {
-        try {
-          final fileName = 'report_${startDate}_to_${endDate}.pdf';
-          String? filePath;
-
-          if (Platform.isAndroid || Platform.isIOS) {
-            final directory = await getApplicationDocumentsDirectory();
-            filePath = '${directory.path}/$fileName';
-            final file = File(filePath);
-            await file.writeAsBytes(pdfResponse.bodyBytes);
-          } else {
-            throw Exception('Unsupported platform');
-          }
-
-          if (filePath != null) {
-            final file = File(filePath);
-            if (!await file.exists()) {
-              throw Exception('File was not saved properly');
-            }
-
-            emit(state.copyWith(
-              status: ReportStatus.success,
-              reportData: reportData,
-            ));
-
-            await Share.shareXFiles(
-              [XFile(filePath)],
-              text: 'Report Downloaded to $filePath',
-            );
-          } else {
-            emit(state.copyWith(
-              status: ReportStatus.failure,
-              errorMessage: 'Failed to save PDF file',
-            ));
-          }
-        } catch (e) {
-          print('PDF save/share error: $e');
-          emit(state.copyWith(
-            status: ReportStatus.failure,
-            errorMessage: 'Error saving PDF: $e',
-          ));
-        }
-      } else {
-        emit(state.copyWith(
-          status: ReportStatus.failure,
-          errorMessage: 'Failed to download PDF: ${pdfResponse.statusCode}',
-        ));
-      }
-    } catch (e) {
-      print('PDF download error: $e');
-      emit(state.copyWith(
-        status: ReportStatus.failure,
-        errorMessage: 'Error downloading PDF: $e',
-      ));
-    }
+Future<void> _onDownloadPdf(DownloadPdf event, Emitter<ReportState> emit) async {
+  if (state.startDate == null || state.endDate == null) {
+    emit(state.copyWith(
+      status: ReportStatus.failure,
+      errorMessage: 'Please select start and end dates',
+    ));
+    return;
   }
 
-  Future<void> _onDownloadCsv(DownloadCsv event, Emitter<ReportState> emit) async {
-    if (state.startDate == null || state.endDate == null) {
+  emit(state.copyWith(status: ReportStatus.loading));
+
+  try {
+    // Get token
+    final token = await _getToken();
+    if (token == null) {
       emit(state.copyWith(
         status: ReportStatus.failure,
-        errorMessage: 'Please select start and end dates',
       ));
       return;
     }
 
-    emit(state.copyWith(status: ReportStatus.loading));
+    // Get plant_id from SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    final plantId = prefs.getInt('plant_id');
+    if (plantId == null) {
+      emit(state.copyWith(
+        status: ReportStatus.failure,
+      ));
+      return;
+    }
 
-    try {
-      final token = await _getToken();
-      if (token == null) {
-        emit(state.copyWith(
-          status: ReportStatus.failure,
-          errorMessage: 'Authentication token not found',
-        ));
-        return;
-      }
+    final startDate = DateFormat('yyyy-MM-dd').format(state.startDate!);
+    final endDate = DateFormat('yyyy-MM-dd').format(state.endDate!);
 
-      final prefs = await SharedPreferences.getInstance();
-      final plantId = prefs.getInt('plant_id');
-      if (plantId == null) {
-        emit(state.copyWith(
-          status: ReportStatus.failure,
-          errorMessage: 'Plant ID not found',
-        ));
-        return;
-      }
+    // Fetch report data (similar to _onReportFetched)
+    final reportResponse = await http.post(
+      Uri.parse(AppConfig.alllogs),
+      headers: <String, String>{
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(<String, dynamic>{
+        'plant_id': plantId,
+        'start_date': startDate,
+        'end_date': endDate,
+      }),
+    );
 
-      final startDate = DateFormat('yyyy-MM-dd').format(state.startDate!);
-      final endDate = DateFormat('yyyy-MM-dd').format(state.endDate!);
+    ReportData? reportData;
+    if (reportResponse.statusCode == 200) {
+      reportData = ReportData.fromJson(json.decode(reportResponse.body));
+    } else {
+      emit(state.copyWith(
+        status: ReportStatus.failure,
+        errorMessage: 'Failed to fetch report data: ${reportResponse.statusCode}',
+      ));
+      return;
+    }
 
-      // Fetch report data if not already available
-      ReportData? reportData = state.reportData;
-      if (reportData == null) {
-        print('Fetching report data for CSV as state.reportData is null');
-        final reportResponse = await http.post(
-          Uri.parse(AppConfig.alllogs),
-          headers: <String, String>{
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode(<String, dynamic>{
-            'plant_id': plantId,
-            'start_date': startDate,
-            'end_date': endDate,
-          }),
-        );
+    // Download PDF
+    final url = Uri.parse('${AppConfig.pdf}?plant_id=$plantId&start_date=$startDate&end_date=$endDate');
+    final pdfResponse = await http.get(
+      url,
+      headers: <String, String>{
+        'Authorization': 'Bearer $token',
+      },
+    );
 
-        if (reportResponse.statusCode == 200) {
-          reportData = ReportData.fromJson(json.decode(reportResponse.body));
-        } else {
-          print('Failed to fetch report data: ${reportResponse.statusCode}');
-          emit(state.copyWith(
-            status: ReportStatus.failure,
-            errorMessage: 'Failed to fetch report data: ${reportResponse.statusCode}',
-          ));
-          return;
-        }
-      }
-
-      // Sanitize CSV fields
-      String sanitizeCsvField(String? input) {
-        if (input == null) return '';
-        return '"${input.replaceAll('"', '""').replaceAll(',', ' ').replaceAll('\n', ' ')}"';
-      }
-
-      // Generate CSV content
-      final StringBuffer csv = StringBuffer();
-      csv.writeln('Chemical Logs');
-      csv.writeln('Chemical Name,Quantity Used,Quantity Left,Sludge Discharge,Shift,Date');
-      for (var log in reportData.chemicalLogs) {
-        csv.writeln('${sanitizeCsvField(log.chemicalName)},${log.quantityUsed},${log.quantityLeft},${log.sludgeDischarge},${log.shift},${sanitizeCsvField(log.createdAt)}');
-      }
-      csv.writeln();
-
-      csv.writeln('Equipment Logs');
-      csv.writeln('Equipment Name,Status,Maintenance Done,Remark,Shift,Date');
-      for (var log in reportData.equipmentLogs) {
-        csv.writeln('${sanitizeCsvField(log.equipmentName)},${sanitizeCsvField(getStatusText(log.equipmentStatus))},${log.maintenanceDone},${sanitizeCsvField(log.equipmentRemark)},${log.shift},${sanitizeCsvField(log.createdAt)}');
-      }
-      csv.writeln();
-
-      csv.writeln('Flow Parameter Logs');
-      csv.writeln('Parameter Name,Inlet Value,Outlet Value,Shift,Date');
-      for (var log in reportData.flowParameterLogs) {
-        csv.writeln('${sanitizeCsvField(log.parameterName)},${log.inletValue},${log.outletValue},${log.shift},${sanitizeCsvField(log.createdAt)}');
-      }
-      csv.writeln();
-
-      csv.writeln('Flow Logs');
-      csv.writeln('Flow Log ID,Inlet Value,Outlet Value,Shift,Date');
-      for (var log in reportData.flowLogs) {
-        csv.writeln('${log.flowLogId},${log.inletValue},${log.outletValue},${log.shift},${sanitizeCsvField(log.createdAt)}');
-      }
-
-      // Log CSV content for debugging
-      final csvString = csv.toString();
-      print('Generated CSV:\n$csvString');
-
-      // Convert to bytes
-      final bytes = Uint8List.fromList(utf8.encode(csvString));
-
-      // Save CSV file to app-specific storage (same as PDF)
-      final fileName = 'report_${startDate}_to_${endDate}.csv';
-      String? filePath;
-
+    if (pdfResponse.statusCode == 200) {
       try {
-        if (Platform.isAndroid || Platform.isIOS) {
+        final fileName = 'report_${startDate}_to_${endDate}.pdf';
+        String? filePath;
+
+        if (Platform.isAndroid) {
+          filePath = await FilePicker.platform.saveFile(
+            dialogTitle: 'Save PDF',
+            fileName: fileName,
+            bytes: pdfResponse.bodyBytes,
+          );
+        } else if (Platform.isIOS) {
           final directory = await getApplicationDocumentsDirectory();
           filePath = '${directory.path}/$fileName';
           final file = File(filePath);
-          await file.writeAsBytes(bytes);
+          await file.writeAsBytes(pdfResponse.bodyBytes);
         } else {
           throw Exception('Unsupported platform');
         }
 
         if (filePath != null) {
-          final file = File(filePath);
-          if (!await file.exists()) {
-            throw Exception('File was not saved properly');
+          if (Platform.isIOS) {
+            final file = File(filePath);
+            if (!await file.exists()) {
+              throw Exception('File was not saved properly');
+            }
           }
 
-          print('Saving CSV to: $filePath');
           emit(state.copyWith(
             status: ReportStatus.success,
             reportData: reportData,
           ));
 
-          // Share the file
-          print('Sharing CSV file: $filePath');
           await Share.shareXFiles(
             [XFile(filePath)],
-            text: 'CSV Report Downloaded to $filePath',
+            text: 'Report Downloaded to $filePath',
           );
         } else {
-          print('File path is null');
           emit(state.copyWith(
             status: ReportStatus.failure,
-            errorMessage: 'Failed to save CSV file',
           ));
         }
       } catch (e) {
-        print('CSV save/share error: $e');
         emit(state.copyWith(
           status: ReportStatus.failure,
-          errorMessage: 'Error saving CSV: $e',
         ));
-
-        // Show a snackbar to inform the user
-        ScaffoldMessenger.of(event.context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to save CSV: $e'),
-            action: Platform.isAndroid
-                ? SnackBarAction(
-                    label: 'Settings',
-                    onPressed: () => openAppSettings(),
-                  )
-                : null,
-          ),
-        );
       }
-    } catch (e) {
-      print('CSV download error: $e');
+    } else {
       emit(state.copyWith(
         status: ReportStatus.failure,
-        errorMessage: 'Error downloading CSV: $e',
       ));
-
-      ScaffoldMessenger.of(event.context).showSnackBar(
-        SnackBar(content: Text('Error downloading CSV: $e')),
-      );
     }
+  } catch (e) {
+    emit(state.copyWith(
+      status: ReportStatus.failure,
+    ));
   }
+}
+Future<void> _onDownloadCsv(DownloadCsv event, Emitter<ReportState> emit) async {
+  if (state.startDate == null || state.endDate == null) {
+    emit(state.copyWith(
+      status: ReportStatus.failure,
+      errorMessage: 'Please select start and end dates',
+    ));
+    return;
+  }
+
+  emit(state.copyWith(status: ReportStatus.loading));
+
+  try {
+    // Get token
+    final token = await _getToken();
+    if (token == null) {
+      emit(state.copyWith(
+        status: ReportStatus.failure,
+      ));
+      return;
+    }
+
+    // Get plant_id from SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    final plantId = prefs.getInt('plant_id');
+    if (plantId == null) {
+      emit(state.copyWith(
+        status: ReportStatus.failure,
+      ));
+      return;
+    }
+
+    final startDate = DateFormat('yyyy-MM-dd').format(state.startDate!);
+    final endDate = DateFormat('yyyy-MM-dd').format(state.endDate!);
+
+    // Fetch report data (similar to _onReportFetched)
+    final reportResponse = await http.post(
+      Uri.parse(AppConfig.alllogs),
+      headers: <String, String>{
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(<String, dynamic>{
+        'plant_id': plantId,
+        'start_date': startDate,
+        'end_date': endDate,
+      }),
+    );
+
+    ReportData? reportData;
+    if (reportResponse.statusCode == 200) {
+      reportData = ReportData.fromJson(json.decode(reportResponse.body));
+    } else {
+      emit(state.copyWith(
+        status: ReportStatus.failure,
+        errorMessage: 'Failed to fetch report data: ${reportResponse.statusCode}',
+      ));
+      return;
+    }
+
+    // Download CSV
+    final url = Uri.parse('${AppConfig.downcsv}?plant_id=$plantId&start_date=$startDate&end_date=$endDate');
+    final csvResponse = await http.get(
+      url,
+      headers: <String, String>{
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (csvResponse.statusCode == 200) {
+      try {
+        final fileName = 'report_${startDate}_to_${endDate}.csv';
+        String? filePath;
+
+        if (Platform.isAndroid) {
+          filePath = await FilePicker.platform.saveFile(
+            dialogTitle: 'Save CSV',
+            fileName: fileName,
+            bytes: csvResponse.bodyBytes,
+          );
+        } else if (Platform.isIOS) {
+          final directory = await getApplicationDocumentsDirectory();
+          filePath = '${directory.path}/$fileName';
+          final file = File(filePath);
+          await file.writeAsBytes(csvResponse.bodyBytes);
+        } else {
+          throw Exception('Unsupported platform');
+        }
+
+        if (filePath != null) {
+          if (Platform.isIOS) {
+            final file = File(filePath);
+            if (!await file.exists()) {
+              throw Exception('File was not saved properly');
+            }
+          }
+
+          emit(state.copyWith(
+            status: ReportStatus.success,
+            reportData: reportData,
+          ));
+
+          await Share.shareXFiles(
+            [XFile(filePath, mimeType: 'text/csv')],
+            text: 'Report Downloaded to $filePath',
+          );
+        } else {
+          emit(state.copyWith(
+            status: ReportStatus.failure,
+          ));
+        }
+      } catch (e) {
+        emit(state.copyWith(
+          status: ReportStatus.failure,
+        ));
+      }
+    } else {
+      emit(state.copyWith(
+        status: ReportStatus.failure,
+      ));
+    }
+  } catch (e) {
+    emit(state.copyWith(
+      status: ReportStatus.failure,
+    ));
+  }
+}
 }
 
 // UI Page
@@ -821,24 +788,33 @@ class _DateSelectionSection extends StatelessWidget {
             FutureBuilder<SharedPreferences>(
               future: SharedPreferences.getInstance(),
               builder: (context, snapshot) {
-                if (snapshot.hasData && snapshot.data!.getInt('role') == 1) {
-                  return ElevatedButton(
-                    onPressed: state.startDate != null && state.endDate != null
-                        ? () => context.read<ReportBloc>().add(DownloadCsv(context: context))
-                        : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).primaryColor,
-                      foregroundColor: Colors.white,
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.file_download),
-                        SizedBox(width: 8),
-                        Text('Download CSV'),
-                      ],
-                    ),
-                  );
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const CircularProgressIndicator();
+                }
+                if (snapshot.hasData) {
+                  final role = snapshot.data!.getInt('role');
+                  print('User role in UI: $role');
+                  if (role == 1) {
+                    return ElevatedButton(
+                      onPressed: state.startDate != null && state.endDate != null
+                          ? () => context.read<ReportBloc>().add(DownloadCsv(context: context))
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).primaryColor,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.file_download),
+                          SizedBox(width: 8),
+                          Text('Download CSV'),
+                        ],
+                      ),
+                    );
+                  } else {
+                    print('CSV button hidden due to role: $role');
+                  }
                 }
                 return const SizedBox.shrink();
               },
