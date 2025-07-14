@@ -47,14 +47,20 @@ class ChemicalLogRepository {
       } else if (response.statusCode == 401) {
         throw Exception('Unauthorized: Invalid or expired token');
       } else {
-        throw Exception('Failed to fetch chemical log data: ${response.statusCode}');
-      }
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 401) {
-        throw Exception('Unauthorized: Invalid or expired token');
-      }
-      throw Exception('Network error: ${e.message}');
+      // Extract error message from response if available
+      final errorMessage = response.data is Map && response.data['message'] != null
+          ? response.data['message']
+          : 'Failed to fetch chemical log data: ${response.statusCode}';
+      throw Exception(errorMessage);
     }
+    } on DioException catch (e) {
+     final errorMessage = e.response?.data is Map && e.response?.data['message'] != null
+        ? e.response?.data['message']
+        : e.response?.statusCode == 401
+            ? 'Unauthorized: Invalid or expired token'
+            : 'Network error: ${e.message}';
+    throw Exception(errorMessage);
+  }
   }
 
 Future<Map<String, dynamic>> addChemicalLog(Map<String, dynamic> log) async {
@@ -112,10 +118,16 @@ Future<Map<String, dynamic>> addChemicalLog(Map<String, dynamic> log) async {
     if (response.statusCode == 201 || response.statusCode == 200) {
       return response.data;
     } else {
-      throw Exception('Failed to add chemical log: ${response.statusCode}');
+      final errorMessage = response.data is Map && response.data['message'] != null
+          ? response.data['message']
+          : 'Failed to add chemical log: ${response.statusCode}';
+      throw Exception(errorMessage);
     }
   } on DioException catch (e) {
-    throw Exception('Network error: ${e.message}');
+    final errorMessage = e.response?.data is Map && e.response?.data['message'] != null
+        ? e.response?.data['message']
+        : 'Network error: ${e.message}';
+    throw Exception(errorMessage);
   }
 }
   Future<Map<String, dynamic>> editChemicalLog({
@@ -150,12 +162,18 @@ Future<Map<String, dynamic>> addChemicalLog(Map<String, dynamic> log) async {
       if (response.statusCode == 200) {
         return response.data;
       } else {
-        throw Exception('Failed to edit chemical log: ${response.statusCode}');
-      }
-    } on DioException catch (e) {
-      throw Exception('Network error: ${e.message}');
+      final errorMessage = response.data is Map && response.data['message'] != null
+          ? response.data['message']
+          : 'Failed to edit chemical log: ${response.statusCode}';
+      throw Exception(errorMessage);
     }
+    } on DioException catch (e) {
+    final errorMessage = e.response?.data is Map && e.response?.data['message'] != null
+        ? e.response?.data['message']
+        : 'Network error: ${e.message}';
+    throw Exception(errorMessage);
   }
+}
 
   Future<bool> deleteChemicalLog(int chemicalLogId) async {
     final token = await _getToken();
@@ -177,13 +195,18 @@ Future<Map<String, dynamic>> addChemicalLog(Map<String, dynamic> log) async {
       if (response.statusCode == 200) {
         return true;
       } else {
-        throw Exception('Failed to delete chemical log: ${response.statusCode}');
-      }
-    } on DioException catch (e) {
-      throw Exception('Network error: ${e.message}');
+      final errorMessage = response.data is Map && response.data['message'] != null
+          ? response.data['message']
+          : 'Failed to delete chemical log: ${response.statusCode}';
+      throw Exception(errorMessage);
     }
+  } on DioException catch (e) {
+    final errorMessage = e.response?.data is Map && e.response?.data['message'] != null
+        ? e.response?.data['message']
+        : 'Network error: ${e.message}';
+    throw Exception(errorMessage);
   }
-
+}
 
   int _mapStatusToInt(String status) {
     switch (status) {

@@ -28,3 +28,12 @@ class ChemicallogError extends ChemicallogState {
   @override
   List<Object> get props => [message];
 }
+
+class ChemicallogSuccess extends ChemicallogState {
+  final String message;
+
+  const ChemicallogSuccess(this.message);
+
+  @override
+  List<Object> get props => [message];
+}

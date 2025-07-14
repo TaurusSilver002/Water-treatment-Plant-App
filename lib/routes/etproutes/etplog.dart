@@ -55,6 +55,28 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
     _parameterlogBloc = widget.parameterlogBloc ?? ParameterlogBloc(repository: ParameterLogRepository());
     _tabController = TabController(length: 4, vsync: this, initialIndex: _selectedTab);
     _tabController.addListener(_handleTabChange);
+    
+    // Listen for chemical log state changes and show appropriate snackbars
+    _chemicallogBloc.stream.listen((state) {
+      if (state is ChemicallogError && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${state.message}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else if (state is ChemicallogSuccess && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(state.message),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    });
+    
     _loadUserRole();
     _loadInitialData();
   }
@@ -86,7 +108,6 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
   }
 }
 
-// Add this method to refresh all logs with the selected date
 void _refreshAllLogs() {
   String? formattedDate;
   if (_selectedFilterDate != null) {

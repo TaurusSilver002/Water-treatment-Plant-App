@@ -30,7 +30,6 @@ class ChemicallogBloc extends Bloc<ChemicallogEvent, ChemicallogState> {
       AddChemicallog event, Emitter<ChemicallogState> emit) async {
     try {
       final currentState = state;
-      // Convert Map<String, dynamic> to Map<String, String>
       final Map<String, String> convertedLog = event.log.map((key, value) => 
           MapEntry(key, value.toString()));
       final newLog = await repository.addChemicalLog(convertedLog);
@@ -42,6 +41,12 @@ class ChemicallogBloc extends Bloc<ChemicallogEvent, ChemicallogState> {
         }));
       } else {
         emit(ChemicallogLoaded({'logs': [newLog]}));
+      }
+      // Emit success message
+      emit(ChemicallogSuccess('Chemical log added successfully'));
+      // Emit loaded state again to maintain the correct state
+      if (currentState is ChemicallogLoaded) {
+        emit(currentState);
       }
     } catch (e) {
       emit(ChemicallogError('Failed to add chemical log: $e'));

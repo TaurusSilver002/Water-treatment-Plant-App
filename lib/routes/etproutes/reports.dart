@@ -142,10 +142,10 @@ class FlowParameterLog {
   final int plantFlowParameterId;
   final String parameterName;
   final int shift;
-  final double outletValue;
+  final double? outletValue;
   final int dailyLogId;
   final int createdBy;
-  final double inletValue;
+  final double? inletValue;
   final String createdAt;
 
   FlowParameterLog({
@@ -154,10 +154,10 @@ class FlowParameterLog {
     required this.plantFlowParameterId,
     required this.parameterName,
     required this.shift,
-    required this.outletValue,
+     this.outletValue,
     required this.dailyLogId,
     required this.createdBy,
-    required this.inletValue,
+     this.inletValue,
     required this.createdAt,
   });
 
@@ -181,26 +181,26 @@ class FlowParameterLog {
 
 class FlowLog {
   final int dailyLogId;
-  final double inletValue;
+  final double? inletValue;
   final String? inletImage;
   final int createdBy;
   final String updatedAt;
   final int flowLogId;
   final int plantId;
-  final double outletValue;
+  final double? outletValue;
   final String? outletImage;
   final String createdAt;
   final int shift;
 
   FlowLog({
     required this.dailyLogId,
-    required this.inletValue,
+     this.inletValue,
     this.inletImage,
     required this.createdBy,
     required this.updatedAt,
     required this.flowLogId,
     required this.plantId,
-    required this.outletValue,
+     this.outletValue,
     this.outletImage,
     required this.createdAt,
     required this.shift,
@@ -965,7 +965,7 @@ class _EquipmentLogsTab extends StatelessWidget {
                       Text('Status: ${_getStatusText(log.equipmentStatus)}'),
                       Text('Maintenance Done: ${log.maintenanceDone ? 'Yes' : 'No'}'),
                       if (log.equipmentRemark != null)
-                        Text('Remark: ${log.equipmentRemark}'),
+                        Text('Remark: ${log.equipmentRemark ?? 'N/A'}'),
                       Text('Shift: ${log.shift}'),
                       Text('Date: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(log.createdAt))}'),
                     ],
@@ -1005,8 +1005,8 @@ class _FlowParameterLogsTab extends StatelessWidget {
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Inlet Value: ${log.inletValue}'),
-                      Text('Outlet Value: ${log.outletValue}'),
+                      Text('Inlet Value: ${log.inletValue ?? 'N/A'}'),
+                      Text('Outlet Value: ${log.outletValue ?? 'N/A'}'),
                       Text('Shift: ${log.shift}'),
                       Text('Daily Log ID: ${log.dailyLogId}'),
                       Text('Date: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(log.createdAt))}'),
@@ -1039,8 +1039,11 @@ class _FlowLogsTab extends StatelessWidget {
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Inlet Value: ${log.inletValue}'),
-                      Text('Outlet Value: ${log.outletValue}'),
+                      Text('Inlet Value: ${log.inletValue??'N/A'}'),
+                      Text('Outlet Value: ${log.outletValue??'N/A'}'),
+                      //new 2 additions
+                      Text('Inlet Image: ${log.inletImage ?? 'N/A'}'), 
+                      Text('Outlet Image: ${log.outletImage ?? 'N/A'}'),
                       Text('Shift: ${log.shift}'),
                       Text('Daily Log ID: ${log.dailyLogId}'),
                       Text('Date: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(log.createdAt))}'),
