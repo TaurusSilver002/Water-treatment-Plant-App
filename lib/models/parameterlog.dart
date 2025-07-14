@@ -12,7 +12,7 @@ class ParameterLogRepository {
     return prefs.getString('token');
   }
 
-  Future<Map<String, dynamic>> fetchParameterLogData() async {
+  Future<Map<String, dynamic>> fetchParameterLogData({String? createdAt}) async {
     final token = await _getToken();
     if (token == null) {
       throw Exception('No authentication token found');
@@ -25,7 +25,9 @@ class ParameterLogRepository {
     try {
       final response = await dio.post(
         AppConfig.parameterlog,
-        data: {'plant_id': plantId},
+        data: {'plant_id': plantId,
+          if (createdAt != null) 'created_at': createdAt,
+        },
         options: Options(
           headers: {
             'Authorization': 'Bearer $token',

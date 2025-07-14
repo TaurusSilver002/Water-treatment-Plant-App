@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:watershooters/bloc/equipmentlog/equipmentlog_bloc.dart';
 import 'package:watershooters/bloc/chemicallog/chemicallog_bloc.dart';
 import 'package:watershooters/bloc/flowlog/flowlog_bloc.dart';
@@ -31,6 +32,7 @@ class EtpLog extends StatefulWidget {
   @override
   State<EtpLog> createState() => _EtpLogState();
 }
+DateTime? _selectedFilterDate;
 
 class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
   late final EquipmentBloc _equipmentBloc;
@@ -66,6 +68,48 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
     _parameterlogBloc.close();
     super.dispose();
   }
+  Future<void> _selectDate(BuildContext context) async {
+  final DateTime? picked = await showDatePicker(
+    context: context,
+    initialDate: _selectedFilterDate ?? DateTime.now(),
+    firstDate: DateTime(2020),
+    lastDate: DateTime.now().add(const Duration(days: 1)),
+  );
+  
+  if (picked != null && picked != _selectedFilterDate) {
+    setState(() {
+      _selectedFilterDate = picked;
+    });
+    
+    // Fetch logs with the selected date
+    _refreshAllLogs();
+  }
+}
+
+// Add this method to refresh all logs with the selected date
+void _refreshAllLogs() {
+  String? formattedDate;
+  if (_selectedFilterDate != null) {
+    formattedDate = "${_selectedFilterDate!.year}-${_selectedFilterDate!.month.toString().padLeft(2, '0')}-${_selectedFilterDate!.day.toString().padLeft(2, '0')}";
+  }
+  
+  switch (_selectedTab) {
+    case 0:
+      _equipmentBloc.add(FetchEquipment(createdAt: formattedDate));
+
+      break;
+    case 1:
+      _chemicallogBloc.add(FetchChemicallog(createdAt: formattedDate));
+      break;
+    case 2:
+      _flowlogBloc.add(FetchFlowlog(createdAt: formattedDate));
+      break;
+    case 3:
+      _parameterlogBloc.add(FetchParameterlog(createdAt: formattedDate));
+      break;
+  }
+}
+
 
   Future<void> _loadInitialData() async {
     if (_selectedTab == 0) {
@@ -542,16 +586,19 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
 
   void _addChemicalLogEntry(Map<String, dynamic> entry) {
     _chemicallogBloc.add(AddChemicallog(entry));
+    _chemicallogBloc.add(FetchChemicallog());
     setState(() {});
   }
 
   void _addFlowLogEntry(Map<String, dynamic> entry) {
     _flowlogBloc.add(AddFlowlog(entry));
+    _flowlogBloc.add(FetchFlowlog());
     setState(() {});
   }
 
   void _addParameterLogEntry(Map<String, dynamic> entry) {
     _parameterlogBloc.add(AddParameterlog(entry));
+    _parameterlogBloc.add(FetchParameterlog());
     setState(() {});
   }
 
@@ -1621,6 +1668,43 @@ double? outletValue = double.tryParse(outletValueController.text.split(' ').firs
               Tab(text: 'Parameter'),
             ],
           ),
+          Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _selectedFilterDate == null 
+                      ? 'All dates' 
+                      : 'Date: ${DateFormat('yyyy-MM-dd').format(_selectedFilterDate!)}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.calendar_today, size: 18),
+                label: const Text('Select Date'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.yellowochre,
+                  foregroundColor: AppColors.darkblue,
+                ),
+                onPressed: () => _selectDate(context),
+              ),
+              if (_selectedFilterDate != null) ...[
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    setState(() {
+                      _selectedFilterDate = null;
+                    });
+                    _refreshAllLogs();
+                  },
+                  tooltip: 'Clear date filter',
+                ),
+              ],
+            ],
+          ),
+        ),
           Expanded(
             child: TabBarView(
               controller: _tabController,

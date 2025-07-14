@@ -12,17 +12,19 @@ class EquipmentBloc extends Bloc<EquipmentEvent, EquipmentState> {
     on<FetchEquipment>(_onFetchEquipment);
     on<AddEquipmentLog>(_onAddEquipmentLog);
   }
-
-  Future<void> _onFetchEquipment(
-      FetchEquipment event, Emitter<EquipmentState> emit) async {
-    emit(EquipmentLoading());
-    try {
-      final equipmentData = await repository.fetchEquipmentData();
-      emit(EquipmentLoaded(equipmentData));
-    } catch (e) {
-      emit(EquipmentError(e.toString()));
-    }
+Future<void> _onFetchEquipment(
+    FetchEquipment event, Emitter<EquipmentState> emit) async {
+  emit(EquipmentLoading());
+  try {
+    final equipmentData = await repository.fetchEquipmentData(
+      createdAt: event.createdAt,
+    );
+    emit(EquipmentLoaded(equipmentData));
+  } catch (e) {
+    emit(EquipmentError(e.toString()));
   }
+}
+
 
   Future<void> _onAddEquipmentLog(
       AddEquipmentLog event, Emitter<EquipmentState> emit) async {

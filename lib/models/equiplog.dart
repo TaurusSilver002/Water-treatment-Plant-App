@@ -13,47 +13,50 @@ class EquipmentRepository {
     return prefs.getString('token');
   }
 
-  Future<Map<String, dynamic>> fetchEquipmentData() async {
-    final token = await _getToken();
-    if (token == null) {
-      throw Exception('No authentication token found');
-    }
-    final prefs = await SharedPreferences.getInstance();
-    final plantId = prefs.getInt('plant_id');
-    if (plantId == null) {
-      throw Exception('No plant_id found in shared preferences');
-    }
-    try {
-      final response = await dio.post(
-        AppConfig.equiplog,
-        data: {'plant_id': plantId},
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Content-Type': 'application/json',
-          },
-        ),
-      );
-
-      if (response.statusCode == 200) {
-        final data = response.data;
-        if (data is List) {
-          return {'logs': data};
-        } else {
-          return {'logs': [data]};
-        }
-      } else if (response.statusCode == 401) {
-        throw Exception('Unauthorized: Invalid or expired token');
-      } else {
-        throw Exception('Failed to fetch equipment data: ${response.statusCode}');
-      }
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 401) {
-        throw Exception('Unauthorized: Invalid or expired token');
-      }
-      throw Exception('Network error: ${e.message}');
-    }
+Future<Map<String, dynamic>> fetchEquipmentData({String? createdAt}) async {
+  final token = await _getToken();
+  if (token == null) {
+    throw Exception('No authentication token found');
   }
+
+  final prefs = await SharedPreferences.getInstance();
+  final plantId = prefs.getInt('plant_id');
+  if (plantId == null) {
+    throw Exception('No plant_id found in shared preferences');
+  }
+
+  try {
+    final dataPayload = {
+      'plant_id': plantId,
+      if (createdAt != null) 'created_at': createdAt,
+    };
+
+    final response = await dio.post(
+      AppConfig.equiplog,
+      data: dataPayload,
+      options: Options(
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ),
+    );
+
+    if (response.statusCode == 200) {
+      final data = response.data;
+      return {'logs': data is List ? data : [data]};
+    } else if (response.statusCode == 401) {
+      throw Exception('Unauthorized: Invalid or expired token');
+    } else {
+      throw Exception('Failed to fetch equipment data: ${response.statusCode}');
+    }
+  } on DioException catch (e) {
+    if (e.response?.statusCode == 401) {
+      throw Exception('Unauthorized: Invalid or expired token');
+    }
+    throw Exception('Network error: ${e.message}');
+  }
+}
 
   Future<Map<String, dynamic>> addEquipmentLog(Map<String, dynamic> log) async {
     final token = await _getToken();

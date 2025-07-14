@@ -8,7 +8,14 @@ abstract class ChemicallogEvent extends Equatable {
   List<Object> get props => [];
 }
 
-class FetchChemicallog extends ChemicallogEvent {}
+class FetchChemicallog extends ChemicallogEvent {
+  final String? createdAt;
+
+  const FetchChemicallog({this.createdAt});
+
+  @override
+  List<Object> get props => createdAt != null ? [createdAt!] : [];
+}
 
 class AddChemicallog extends ChemicallogEvent {
   final Map<String, dynamic> log;

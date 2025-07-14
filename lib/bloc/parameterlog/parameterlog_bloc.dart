@@ -17,7 +17,9 @@ class ParameterlogBloc extends Bloc<ParameterlogEvent, ParameterlogState> {
       FetchParameterlog event, Emitter<ParameterlogState> emit) async {
     emit(ParameterlogLoading());
     try {
-      final parameterlogData = await repository.fetchParameterLogData();
+      final parameterlogData = await repository.fetchParameterLogData(  
+            createdAt: event.createdAt,
+);
       emit(ParameterlogLoaded(parameterlogData));
     } catch (e) {
       emit(ParameterlogError(e.toString()));

@@ -7,7 +7,14 @@ abstract class FlowlogEvent extends Equatable {
   List<Object> get props => [];
 }
 
-class FetchFlowlog extends FlowlogEvent {}
+class FetchFlowlog extends FlowlogEvent {
+  final String? createdAt;
+
+  const FetchFlowlog({this.createdAt});
+
+  @override
+  List<Object> get props => createdAt != null ? [createdAt!] : [];
+}
 
 class AddFlowlog extends FlowlogEvent {
   final Map<String, dynamic> log;

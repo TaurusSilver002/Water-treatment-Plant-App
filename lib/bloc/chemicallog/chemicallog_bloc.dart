@@ -17,7 +17,9 @@ class ChemicallogBloc extends Bloc<ChemicallogEvent, ChemicallogState> {
       FetchChemicallog event, Emitter<ChemicallogState> emit) async {
     emit(ChemicallogLoading());
     try {
-      final chemicallogData = await repository.fetchChemicalLogData();
+      final chemicallogData = await repository.fetchChemicalLogData( 
+        createdAt: event.createdAt,
+);
       emit(ChemicallogLoaded(chemicallogData));
     } catch (e) {
       emit(ChemicallogError(e.toString()));

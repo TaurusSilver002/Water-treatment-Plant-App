@@ -77,14 +77,16 @@ class ChemicalLog {
     return ChemicalLog(
       plantChemicalId: json['plant_chemical_id'],
       chemicalName: json['chemical_name'],
-      quantityLeft: json['quantity_left'].toDouble(),
+      quantityLeft: json['quantity_left'],
+      //.toDouble(),
       sludgeDischarge: json['sludge_discharge'],
       dailyLogId: json['daily_log_id'],
       plantId: json['plant_id'],
       chemicalLogId: json['chemical_log_id'],
       createdBy: json['created_by'],
       shift: json['shift'],
-      quantityUsed: json['quantity_used'].toDouble(),
+      quantityUsed: json['quantity_used'],
+      //.toDouble(),
       createdAt: json['created_at'],
     );
   }
@@ -166,10 +168,12 @@ class FlowParameterLog {
       plantFlowParameterId: json['plant_flow_parameter_id'],
       parameterName: json['parameter_name'],
       shift: json['shift'],
-      outletValue: json['outlet_value'].toDouble(),
+      outletValue: json['outlet_value'],
+      //.toDouble(),
       dailyLogId: json['daily_log_id'],
       createdBy: json['created_by'],
-      inletValue: json['inlet_value'].toDouble(),
+      inletValue: json['inlet_value'],
+      //.toDouble(),
       createdAt: json['created_at'],
     );
   }
@@ -205,13 +209,13 @@ class FlowLog {
   factory FlowLog.fromJson(Map<String, dynamic> json) {
     return FlowLog(
       dailyLogId: json['daily_log_id'],
-      inletValue: json['inlet_value'].toDouble(),
+      inletValue: json['inlet_value'],//.toDouble(),
       inletImage: json['inlet_image'],
       createdBy: json['created_by'],
       updatedAt: json['updated_at'],
       flowLogId: json['flow_log_id'],
       plantId: json['plant_id'],
-      outletValue: json['outlet_value'].toDouble(),
+      outletValue: json['outlet_value'],//.toDouble(),
       outletImage: json['outlet_image'],
       createdAt: json['created_at'],
       shift: json['shift'],

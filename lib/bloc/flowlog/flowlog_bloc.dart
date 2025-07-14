@@ -17,7 +17,8 @@ class FlowlogBloc extends Bloc<FlowlogEvent, FlowlogState> {
       FetchFlowlog event, Emitter<FlowlogState> emit) async {
     emit(FlowlogLoading());
     try {
-      final flowlogData = await repository.fetchFlowLogData();
+      final flowlogData = await repository.fetchFlowLogData(createdAt: event.createdAt,
+);
       emit(FlowlogLoaded(flowlogData));
     } catch (e) {
       emit(FlowlogError(e.toString()));
