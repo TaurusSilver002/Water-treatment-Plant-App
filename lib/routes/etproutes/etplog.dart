@@ -33,9 +33,49 @@ class EtpLog extends StatefulWidget {
   @override
   State<EtpLog> createState() => _EtpLogState();
 }
-DateTime? _selectedFilterDate;
+
 
 class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
+  // Show date picker and update filter
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedFilterDate ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null && picked != _selectedFilterDate) {
+      setState(() {
+        _selectedFilterDate = picked;
+      });
+      _loadInitialData();
+    }
+  }
+
+  // Clear date filter and reload logs
+  void _refreshAllLogs() {
+    setState(() {
+      _selectedFilterDate = null;
+    });
+    // Fetch all logs without date filter
+    if (_selectedTab == 0) {
+      _equipmentBloc.add(FetchEquipment());
+      _fetchEquipmentList();
+    } else if (_selectedTab == 1) {
+      _fetchChemicalList();
+      _chemicallogBloc.add(FetchChemicallog());
+    } else if (_selectedTab == 2) {
+      _flowlogBloc.add(FetchFlowlog());
+    } else if (_selectedTab == 3) {
+      _parameterlogBloc.add(FetchParameterlog());
+      _fetchParameterList();
+    }
+  }
+
+
+
+  // --- Fields ---
+  DateTime? _selectedFilterDate;
   late final EquipmentBloc _equipmentBloc;
   late final ChemicallogBloc _chemicallogBloc;
   late final FlowlogBloc _flowlogBloc;
@@ -46,14 +86,34 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
   List<Map<String, dynamic>> _equipmentList = [];
   List<Map<String, dynamic>> _chemicalList = [];
   List<Map<String, dynamic>> _parameterList = [];
-
   StreamSubscription? _equipmentlogSubscription;
   StreamSubscription? _chemicallogSubscription;
   StreamSubscription? _flowlogSubscription;
   StreamSubscription? _parameterlogSubscription;
 
+  // --- Helper Methods ---
+
+  Future<void> _loadInitialData() async {
+    // Use today's date as filter on first load
+    String formattedDate = "${_selectedFilterDate!.year}-${_selectedFilterDate!.month.toString().padLeft(2, '0')}-${_selectedFilterDate!.day.toString().padLeft(2, '0')}";
+    if (_selectedTab == 0) {
+      _equipmentBloc.add(FetchEquipment(createdAt: formattedDate));
+      await _fetchEquipmentList();
+    } else if (_selectedTab == 1) {
+      await _fetchChemicalList();
+      _chemicallogBloc.add(FetchChemicallog(createdAt: formattedDate));
+    } else if (_selectedTab == 2) {
+      _flowlogBloc.add(FetchFlowlog(createdAt: formattedDate));
+    } else if (_selectedTab == 3) {
+      _parameterlogBloc.add(FetchParameterlog(createdAt: formattedDate));
+      await _fetchParameterList();
+    }
+  }
+
+  // --- Lifecycle ---
   @override
   void initState() {
+    _selectedFilterDate = DateTime.now();
     super.initState();
     _equipmentBloc = widget.equipmentBloc ?? EquipmentBloc(repository: EquipmentRepository());
     _chemicallogBloc = widget.chemicallogBloc ?? ChemicallogBloc(repository: ChemicalLogRepository());
@@ -127,76 +187,6 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
 
     _loadUserRole();
     _loadInitialData();
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    _equipmentlogSubscription?.cancel();
-    _chemicallogSubscription?.cancel();
-    _flowlogSubscription?.cancel();
-    _parameterlogSubscription?.cancel();
-    _equipmentBloc.close();
-    _chemicallogBloc.close();
-    _flowlogBloc.close();
-    _parameterlogBloc.close();
-    super.dispose();
-  }
-  Future<void> _selectDate(BuildContext context) async {
-  final DateTime? picked = await showDatePicker(
-    context: context,
-    initialDate: _selectedFilterDate ?? DateTime.now(),
-    firstDate: DateTime(2020),
-    lastDate: DateTime.now().add(const Duration(days: 1)),
-  );
-  
-  if (picked != null && picked != _selectedFilterDate) {
-    setState(() {
-      _selectedFilterDate = picked;
-    });
-    
-    // Fetch logs with the selected date
-    _refreshAllLogs();
-  }
-}
-
-void _refreshAllLogs() {
-  String? formattedDate;
-  if (_selectedFilterDate != null) {
-    formattedDate = "${_selectedFilterDate!.year}-${_selectedFilterDate!.month.toString().padLeft(2, '0')}-${_selectedFilterDate!.day.toString().padLeft(2, '0')}";
-  }
-  
-  switch (_selectedTab) {
-    case 0:
-      _equipmentBloc.add(FetchEquipment(createdAt: formattedDate));
-
-      break;
-    case 1:
-      _chemicallogBloc.add(FetchChemicallog(createdAt: formattedDate));
-      break;
-    case 2:
-      _flowlogBloc.add(FetchFlowlog(createdAt: formattedDate));
-      break;
-    case 3:
-      _parameterlogBloc.add(FetchParameterlog(createdAt: formattedDate));
-      break;
-  }
-}
-
-
-  Future<void> _loadInitialData() async {
-    if (_selectedTab == 0) {
-      _equipmentBloc.add(FetchEquipment());
-      await _fetchEquipmentList();
-    } else if (_selectedTab == 1) {
-      await _fetchChemicalList();
-      _chemicallogBloc.add(FetchChemicallog());
-    } else if (_selectedTab == 2) {
-      _flowlogBloc.add(FetchFlowlog());
-    } else if (_selectedTab == 3) {
-      _parameterlogBloc.add(FetchParameterlog());
-      await _fetchParameterList();
-    }
   }
 
   Future<void> _loadUserRole() async {
