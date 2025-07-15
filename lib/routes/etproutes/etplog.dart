@@ -6,6 +6,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:watershooters/bloc/equipmentlog/equipmentlog_bloc.dart';
+import 'dart:async';
 import 'package:watershooters/bloc/chemicallog/chemicallog_bloc.dart';
 import 'package:watershooters/bloc/flowlog/flowlog_bloc.dart';
 import 'package:watershooters/bloc/parameterlog/parameterlog_bloc.dart';
@@ -46,6 +47,11 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
   List<Map<String, dynamic>> _chemicalList = [];
   List<Map<String, dynamic>> _parameterList = [];
 
+  StreamSubscription? _equipmentlogSubscription;
+  StreamSubscription? _chemicallogSubscription;
+  StreamSubscription? _flowlogSubscription;
+  StreamSubscription? _parameterlogSubscription;
+
   @override
   void initState() {
     super.initState();
@@ -55,9 +61,23 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
     _parameterlogBloc = widget.parameterlogBloc ?? ParameterlogBloc(repository: ParameterLogRepository());
     _tabController = TabController(length: 4, vsync: this, initialIndex: _selectedTab);
     _tabController.addListener(_handleTabChange);
-    
-    // Listen for chemical log state changes and show appropriate snackbars
-    _chemicallogBloc.stream.listen((state) {
+
+    // Listen for equipment log state changes
+    _equipmentlogSubscription = _equipmentBloc.stream.listen((state) {
+      if (state is EquipmentError && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${state.message}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else if (state is EquipmentLoaded && mounted) {
+        // Optionally show a success message if needed
+      }
+    });
+    // Listen for chemical log state changes
+    _chemicallogSubscription = _chemicallogBloc.stream.listen((state) {
       if (state is ChemicallogError && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -76,7 +96,35 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
         );
       }
     });
-    
+    // Listen for flow log state changes
+    _flowlogSubscription = _flowlogBloc.stream.listen((state) {
+      if (state is FlowlogError && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${state.message}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else if (state is FlowlogLoaded && mounted) {
+        // Optionally show a success message if needed
+      }
+    });
+    // Listen for parameter log state changes
+    _parameterlogSubscription = _parameterlogBloc.stream.listen((state) {
+      if (state is ParameterlogError && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${state.message}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else if (state is ParameterlogLoaded && mounted) {
+        // Optionally show a success message if needed
+      }
+    });
+
     _loadUserRole();
     _loadInitialData();
   }
@@ -84,6 +132,10 @@ class _EtpLogState extends State<EtpLog> with SingleTickerProviderStateMixin {
   @override
   void dispose() {
     _tabController.dispose();
+    _equipmentlogSubscription?.cancel();
+    _chemicallogSubscription?.cancel();
+    _flowlogSubscription?.cancel();
+    _parameterlogSubscription?.cancel();
     _equipmentBloc.close();
     _chemicallogBloc.close();
     _flowlogBloc.close();
@@ -602,6 +654,7 @@ void _refreshAllLogs() {
 
   void _addEquipmentLogEntry(Map<String, dynamic> entry) {
     _equipmentBloc.add(AddEquipmentLog(entry));
+    _equipmentBloc.add(FetchEquipment()); // Reset state and reload
     setState(() {});
   }
 
